@@ -7,6 +7,7 @@ using namespace std;
 
 #include "gsc_graph.hpp" // See header for copyright and usage information
 #include "utils.hpp"
+#include "functions.hpp"
 
 extern vector<AStarGraph> AStarGraphs;
 
@@ -252,13 +253,35 @@ void gsc_graph_add_node(void)
 
 	vec3_t origin;
 	Scr_GetVector(1, origin);
-	int type = 0; 
+	int type = 0;
 	if ( Scr_GetNumParam() > 2 )
 		type = Scr_GetInt(2);
 
-	graph.nodes.emplace_back(graph.nodes.size(), origin, type);
+	unsigned int nodeId;
+	if ( Scr_GetNumParam() > 3 )
+	{
+		nodeId = Scr_GetInt(3);
+		// Validate nodeId is not already in use
+		if ( graph.GetNodeById(nodeId) != NULL )
+		{
+			stackError("gsc_graph_add_node() node %d already exists in graph %d", nodeId, graphId);
+			stackPushUndefined();
+			return;
+		}
+	}
+	else
+	{
+		// Auto-generate: find next available ID
+		nodeId = 0;
+		while ( graph.GetNodeById(nodeId) != NULL )
+		{
+			nodeId++;
+		}
+	}
 
-	stackPushBool(qtrue);
+	graph.nodes.emplace_back(nodeId, origin, type);
+
+	stackPushInt(nodeId);
 }
 
 void gsc_graph_get_node_properties(void)
@@ -841,4 +864,356 @@ void gsc_graph_find_closest_edge(void)
 	Scr_AddArrayStringIndexed(custom_scr_const.cost);
 	Scr_AddInt(closestEdge->type);
 	Scr_AddArrayStringIndexed(custom_scr_const.type);
+}
+
+void gsc_graph_get_node_origin(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_node_origin() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int nodeId = Scr_GetInt(1);
+	AStarGraphNode* node = graph.GetNodeById(nodeId);
+	if ( !node )
+	{
+		stackError("gsc_graph_get_node_origin() node %d not found in graph %d", nodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	Scr_AddVector(node->origin);
+}
+
+void gsc_graph_get_node_type(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_node_type() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int nodeId = Scr_GetInt(1);
+	AStarGraphNode* node = graph.GetNodeById(nodeId);
+	if ( !node )
+	{
+		stackError("gsc_graph_get_node_type() node %d not found in graph %d", nodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	Scr_AddInt(node->type);
+}
+
+void gsc_graph_get_edge_type(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_edge_type() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int fromNodeId = Scr_GetInt(1);
+	AStarGraphNode* fromNode = graph.GetNodeById(fromNodeId);
+	if ( !fromNode )
+	{
+		stackError("gsc_graph_get_edge_type() start node %d not found in graph %d", fromNodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	unsigned int toNodeId = Scr_GetInt(2);
+	AStarGraphNode* toNode = graph.GetNodeById(toNodeId);
+	if ( !toNode )
+	{
+		stackError("gsc_graph_get_edge_type() end node %d not found in graph %d", toNodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+#if USE_FSA_MEMORY
+	unsigned int i = 0;
+	for ( auto edge = begin(fromNode->edges); i < fromNode->numEdges; ++edge, ++i )
+#else
+	for ( auto edge = begin(fromNode->edges); edge != end(fromNode->edges); ++edge )
+#endif
+	{
+		if ( edge->end == toNode )
+		{
+			Scr_AddInt(edge->type);
+			return;
+		}
+	}
+
+	stackError("gsc_graph_get_edge_type() no edge from node %d to node %d found in graph %d", fromNodeId, toNodeId, graphId);
+	stackPushUndefined();
+}
+
+void gsc_graph_get_edge_cost(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_edge_cost() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int fromNodeId = Scr_GetInt(1);
+	AStarGraphNode* fromNode = graph.GetNodeById(fromNodeId);
+	if ( !fromNode )
+	{
+		stackError("gsc_graph_get_edge_cost() start node %d not found in graph %d", fromNodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	unsigned int toNodeId = Scr_GetInt(2);
+	AStarGraphNode* toNode = graph.GetNodeById(toNodeId);
+	if ( !toNode )
+	{
+		stackError("gsc_graph_get_edge_cost() end node %d not found in graph %d", toNodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+#if USE_FSA_MEMORY
+	unsigned int i = 0;
+	for ( auto edge = begin(fromNode->edges); i < fromNode->numEdges; ++edge, ++i )
+#else
+	for ( auto edge = begin(fromNode->edges); edge != end(fromNode->edges); ++edge )
+#endif
+	{
+		if ( edge->end == toNode )
+		{
+			Scr_AddFloat(edge->cost);
+			return;
+		}
+	}
+
+	stackError("gsc_graph_get_edge_cost() no edge from node %d to node %d found in graph %d", fromNodeId, toNodeId, graphId);
+	stackPushUndefined();
+}
+
+void gsc_graph_get_edges_from_node(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_edges_from_node() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int nodeId = Scr_GetInt(1);
+	AStarGraphNode* node = graph.GetNodeById(nodeId);
+	if ( !node )
+	{
+		stackError("gsc_graph_get_edges_from_node() node %d not found in graph %d", nodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushArray();
+
+#if USE_FSA_MEMORY
+	unsigned int i = 0;
+	for ( auto edge = begin(node->edges); i < node->numEdges; ++edge, ++i )
+#else
+	for ( auto edge = begin(node->edges); edge != end(node->edges); ++edge )
+#endif
+	{
+		Scr_MakeArray();
+		Scr_AddInt(edge->start->id);
+		Scr_AddArrayStringIndexed(custom_scr_const.start);
+		Scr_AddInt(edge->end->id);
+		Scr_AddArrayStringIndexed(custom_scr_const.end);
+		Scr_AddInt(edge->type);
+		Scr_AddArrayStringIndexed(custom_scr_const.type);
+		Scr_AddFloat(edge->cost);
+		Scr_AddArrayStringIndexed(custom_scr_const.cost);
+		stackPushArrayLast();
+	}
+}
+
+void gsc_graph_get_edges_to_node(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_edges_to_node() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int nodeId = Scr_GetInt(1);
+	AStarGraphNode* targetNode = graph.GetNodeById(nodeId);
+	if ( !targetNode )
+	{
+		stackError("gsc_graph_get_edges_to_node() node %d not found in graph %d", nodeId, graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushArray();
+
+	// Iterate all nodes to find edges pointing to target node
+	for ( auto node = begin(graph.nodes); node != end(graph.nodes); ++node )
+	{
+#if USE_FSA_MEMORY
+		unsigned int i = 0;
+		for ( auto edge = begin(node->edges); i < node->numEdges; ++edge, ++i )
+#else
+		for ( auto edge = begin(node->edges); edge != end(node->edges); ++edge )
+#endif
+		{
+			if ( edge->end == targetNode )
+			{
+				Scr_MakeArray();
+				Scr_AddInt(edge->start->id);
+				Scr_AddArrayStringIndexed(custom_scr_const.start);
+				Scr_AddInt(edge->end->id);
+				Scr_AddArrayStringIndexed(custom_scr_const.end);
+				Scr_AddInt(edge->type);
+				Scr_AddArrayStringIndexed(custom_scr_const.type);
+				Scr_AddFloat(edge->cost);
+				Scr_AddArrayStringIndexed(custom_scr_const.cost);
+				stackPushArrayLast();
+			}
+		}
+	}
+}
+
+void gsc_graph_find_closest_node_with_trace(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_find_closest_node_with_trace() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	if ( graph.nodes.size() < 1 )
+	{
+		stackError("gsc_graph_find_closest_node_with_trace() graph %d has no nodes", graphId);
+		stackPushUndefined();
+		return;
+	}
+
+	vec3_t origin;
+	Scr_GetVector(1, origin);
+
+	int contentmask = Scr_GetInt(2);
+
+	float closestDist = numeric_limits<float>::infinity();
+	unsigned int closestNodeId = UINT_MAX;
+	trace_t trace;
+
+	for ( auto node = begin(graph.nodes); node != end(graph.nodes); ++node )
+	{
+		float dist = Get3DDistanceSquared(node->origin, origin);
+
+		if ( dist < closestDist )
+		{
+			// Perform trace test
+			G_LocationalTrace(&trace, origin, node->origin, ENTITY_NONE, contentmask, NULL);
+
+			if ( trace.fraction == 1.0 )  // Clear line of sight
+			{
+				closestDist = dist;
+				closestNodeId = node->id;
+			}
+		}
+	}
+
+	if ( closestNodeId != UINT_MAX )
+		Scr_AddInt(closestNodeId);
+	else
+		stackPushUndefined();
+}
+
+void gsc_graph_get_all_nodes(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_all_nodes() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	stackPushArray();
+
+	for ( auto node = begin(graph.nodes); node != end(graph.nodes); ++node )
+	{
+		Scr_MakeArray();
+		Scr_AddInt(node->id);
+		Scr_AddArrayStringIndexed(custom_scr_const.id);
+		Scr_AddVector(node->origin);
+		Scr_AddArrayStringIndexed(custom_scr_const.origin);
+		Scr_AddInt(node->type);
+		Scr_AddArrayStringIndexed(custom_scr_const.type);
+		stackPushArrayLast();
+	}
+}
+
+void gsc_graph_get_all_edges(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_all_edges() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	stackPushArray();
+
+	for ( auto node = begin(graph.nodes); node != end(graph.nodes); ++node )
+	{
+#if USE_FSA_MEMORY
+		unsigned int i = 0;
+		for ( auto edge = begin(node->edges); i < node->numEdges; ++edge, ++i )
+#else
+		for ( auto edge = begin(node->edges); edge != end(node->edges); ++edge )
+#endif
+		{
+			Scr_MakeArray();
+			Scr_AddInt(edge->start->id);
+			Scr_AddArrayStringIndexed(custom_scr_const.start);
+			Scr_AddInt(edge->end->id);
+			Scr_AddArrayStringIndexed(custom_scr_const.end);
+			Scr_AddInt(edge->type);
+			Scr_AddArrayStringIndexed(custom_scr_const.type);
+			Scr_AddFloat(edge->cost);
+			Scr_AddArrayStringIndexed(custom_scr_const.cost);
+			stackPushArrayLast();
+		}
+	}
 }

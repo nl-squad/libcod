@@ -34,12 +34,21 @@ void gsc_graph_remove_graph(void);
 void gsc_graph_remove_graphs(void);
 void gsc_graph_add_node(void);
 void gsc_graph_get_node_properties(void);
+void gsc_graph_get_node_origin(void);
+void gsc_graph_get_node_type(void);
+void gsc_graph_get_all_nodes(void);
 void gsc_graph_remove_node(void);
 void gsc_graph_add_edge(void);
 void gsc_graph_get_edge_properties(void);
+void gsc_graph_get_edge_type(void);
+void gsc_graph_get_edge_cost(void);
+void gsc_graph_get_edges_from_node(void);
+void gsc_graph_get_edges_to_node(void);
+void gsc_graph_get_all_edges(void);
 void gsc_graph_remove_edge(void);
 void gsc_graph_find_path_astar(void);
 void gsc_graph_find_closest_node(void);
+void gsc_graph_find_closest_node_with_trace(void);
 void gsc_graph_find_closest_edge(void);
 
 // Used for text debugging
@@ -115,7 +124,7 @@ public:
 	{
 		id = _id;
 		VectorCopy(_origin, origin);
-		type = type;
+		type = _type;
 	}
 
 	float GetCostToNext(AStarGraphNode& nextNode);
