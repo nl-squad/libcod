@@ -1553,6 +1553,21 @@ void gsc_utils_vectorscale()
 	stackPushVector(out);
 }
 
+void gsc_utils_distance3d()
+{
+	vec3_t origin1;
+	vec3_t origin2;
+
+	if ( !stackGetParams("vv", &origin1, &origin2) )
+	{
+		stackError("gsc_utils_distance3d() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushFloat(Get3DDistance(origin1, origin2));
+}
+
 void gsc_utils_getlasttestclientnumber()
 {
 	int offset = 0x083E2F0C;

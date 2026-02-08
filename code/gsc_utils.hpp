@@ -60,6 +60,7 @@ void gsc_utils_roundto();
 void gsc_utils_sqrt();
 void gsc_utils_sqrtinv();
 void gsc_utils_vectorscale();
+void gsc_utils_distance3d();
 
 void gsc_utils_chr();
 void gsc_utils_ord();

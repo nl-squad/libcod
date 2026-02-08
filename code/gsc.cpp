@@ -225,6 +225,7 @@ scr_function_t scriptFunctions[] =
 	{"sqrt", gsc_utils_sqrt, 0},
 	{"sqrtInv", gsc_utils_sqrtinv, 0},
 	{"vectorScale", gsc_utils_vectorscale, 0},
+	{"distance3D", gsc_utils_distance3d, 0},
 
 	{"chr", gsc_utils_chr, 0},
 	{"ord", gsc_utils_ord, 0},
