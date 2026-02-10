@@ -28,6 +28,8 @@
 - `isSuccess = graphRemoveNode(graphId, nodeId)` - Returns `true` if removed, `false` if node not found; returns `undefined` if graph does not exist.
 - `isSuccess = graphAddEdge(graphId, fromNodeId, toNodeId, [type], [cost])` - Returns `true` on success; returns `undefined` if graph does not exist, start/end missing, edge already exists, start=end, or (FSA) start node hit max edges.
 - `properties = graphGetEdgeProperties(graphId, fromNodeId, toNodeId)` - Returns array with `start`, `end`, `type`, `cost`; returns `undefined` if graph/start/end/edge not found.
+- `isSuccess = graphSetEdgeType(graphId, fromNodeId, toNodeId, type)` - Returns `true` if updated, `false` if edge not found; returns `undefined` if graph/start/end not found.
+- `type = graphGetEdgeType(graphId, fromNodeId, toNodeId)` - Returns edge type; returns `undefined` if graph/start/end/edge not found.
 - `isSuccess = graphRemoveEdge(graphId, fromNodeId, toNodeId)` - Returns `true` if removed, `false` if edge not found; returns `undefined` if graph/start/end not found or (FSA) start has no edges.
 - `path = graphFindPath(graphId, startNodeId, endNodeId, [skipNodeIds], [skipNodeTypes], [skipEdgeTypes])` - Returns array of node IDs (includes `start`) if path found; returns `undefined` if graph is missing, nodes invalid, skip list invalid, or no path found.
 - `isSuccess = graphPrecomputePathsToNode(graphId, nodeId, [skipNodeTypes], [skipEdgeTypes])` - Returns `true` on success; returns `undefined` if graph missing, no nodes, goal missing, or precompute failed.

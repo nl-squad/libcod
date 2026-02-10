@@ -44,6 +44,7 @@ void gsc_graph_remove_node(void);
 void gsc_graph_add_edge(void);
 void gsc_graph_get_edge_properties(void);
 void gsc_graph_set_edge_type(void);
+void gsc_graph_get_edge_type(void);
 void gsc_graph_remove_edge(void);
 void gsc_graph_find_path_astar(void);
 void gsc_graph_find_closest_node(void);

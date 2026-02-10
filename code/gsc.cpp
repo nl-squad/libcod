@@ -76,6 +76,7 @@ scr_function_t scriptFunctions[] =
 	{"graphAddEdge", gsc_graph_add_edge, 0},
 	{"graphGetEdgeProperties", gsc_graph_get_edge_properties, 0},
 	{"graphSetEdgeType", gsc_graph_set_edge_type, 0},
+	{"graphGetEdgeType", gsc_graph_get_edge_type, 0},
 	{"graphRemoveEdge", gsc_graph_remove_edge, 0},
 	{"graphFindPath", gsc_graph_find_path_astar, 0},
 	{"graphPrecomputePathsToNode", gsc_graph_precompute_paths_to_node, 0},

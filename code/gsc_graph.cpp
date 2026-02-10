@@ -1146,6 +1146,54 @@ void gsc_graph_set_edge_type(void)
 	stackPushBool(qfalse);
 }
 
+void gsc_graph_get_edge_type(void)
+{
+	unsigned int graphId = Scr_GetInt(0);
+	AStarGraph* graphPointer = GetGraphById(graphId);
+	if ( !graphPointer )
+	{
+		stackError("gsc_graph_get_edge_type() graph %d does not exist", graphId);
+		stackPushUndefined();
+		return;
+	}
+	AStarGraph& graph = *graphPointer;
+
+	unsigned int fromNodeId = Scr_GetInt(1);
+	AStarGraphNode* fromNode = graph.GetNodeById(fromNodeId);
+	if ( !fromNode )
+	{
+		stackError("gsc_graph_get_edge_type() start node %d not found in graph", fromNodeId);
+		stackPushUndefined();
+		return;
+	}
+
+	unsigned int toNodeId = Scr_GetInt(2);
+	AStarGraphNode* toNode = graph.GetNodeById(toNodeId);
+	if ( !toNode )
+	{
+		stackError("gsc_graph_get_edge_type() end node %d not found in graph", toNodeId);
+		stackPushUndefined();
+		return;
+	}
+
+#if USE_FSA_MEMORY
+	unsigned int i = 0;
+	for ( auto edge = begin(fromNode->edges); i < fromNode->numEdges; ++edge, ++i )
+#else
+	for ( auto edge = begin(fromNode->edges); edge != end(fromNode->edges); ++edge )
+#endif
+	{
+		if ( edge->end == toNode )
+		{
+			stackPushInt(edge->type);
+			return;
+		}
+	}
+
+	stackError("gsc_graph_get_edge_type() no edge with start node %d and end node %d found in graph %d", toNodeId, fromNodeId, graphId);
+	stackPushUndefined();
+}
+
 void gsc_graph_remove_edge(void)
 {
 	unsigned int graphId = Scr_GetInt(0);
