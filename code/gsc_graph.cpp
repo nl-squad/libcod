@@ -369,6 +369,13 @@ static bool PrecomputePathsToNode(
 	if ( itGoal == graph.nodeIndexById.end() )
 		return false;
 
+	GraphPrecomputeKey key;
+	key.goalId = goalId;
+	key.skipNodeTypes = skipNodeTypes;
+	key.skipEdgeTypes = skipEdgeTypes;
+	if ( graph.precomputedPaths.find(key) != graph.precomputedPaths.end() )
+		return true;
+
 	const size_t goalIndex = itGoal->second;
 	const size_t nodeCount = graph.nodes.size();
 
@@ -436,10 +443,6 @@ static bool PrecomputePathsToNode(
 		}
 	}
 
-	GraphPrecomputeKey key;
-	key.goalId = goalId;
-	key.skipNodeTypes = skipNodeTypes;
-	key.skipEdgeTypes = skipEdgeTypes;
 	graph.precomputedPaths[key] = std::move(data);
 
 	return true;
