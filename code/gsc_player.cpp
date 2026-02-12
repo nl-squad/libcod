@@ -1588,6 +1588,13 @@ void gsc_player_setweaponidinslotid(scr_entref_t ref)
 
 	playerState_t *ps = SV_GameClientNum(id);
 	ps->weaponslots[slotId] = (byte)weaponId;
+
+	// Ensure the player actually owns the weapon so it can be used.
+	if ( weaponId != 0 )
+	{
+		COM_BitSet(ps->weapons, weaponId);
+	}
+
 	stackPushBool(qtrue);
 }
 
