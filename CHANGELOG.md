@@ -14,8 +14,10 @@
 - `isSuccess = player setSlotIdAmmo(slotId, ammo)` - Returns `true` on success (clamps to valid range), `false` if slot is invalid, player is not active, slot is empty, or weapon has no ammo type; returns `undefined` if the entity is not a player or args are wrong type.
 - `isSuccess = player setWeaponIdClipAmmo(weaponId, clipAmmo)` - Returns `true` on success (clamps to valid range), `false` if weapon ID is invalid, player is not active, or weapon has no clip; returns `undefined` if the entity is not a player or args are wrong type.
 - `isSuccess = player setWeaponIdAmmo(weaponId, ammo)` - Returns `true` on success (clamps to valid range), `false` if weapon ID is invalid, player is not active, or weapon has no ammo type; returns `undefined` if the entity is not a player or args are wrong type.
-- `isSuccess = player canReloadSlotId(slotId, [reloadThreshold])` - Returns `true`/`false` based on reload eligibility; returns `false` for invalid slot, empty slot, clip-only weapon, or missing clip; returns `undefined` if the entity is not a player, arg count is wrong, or args are wrong type.
 - `weaponId = weaponNameToId(weaponName)` - Returns weapon ID (often `0` if not found); returns `undefined` if the arg is wrong type or missing.
+- `clipSize = getWeaponIdClipAmmoSize(weaponId)` - Returns clip size for weapon ID; returns `0` if the weapon has no clip; returns `undefined` if the arg is wrong type or the weapon ID is invalid.
+- `ammoSize = getWeaponIdAmmoSize(weaponId)` - Returns max ammo for weapon ID (clip-only weapons return clip size); returns `0` if the weapon has no ammo type; returns `undefined` if the arg is wrong type or the weapon ID is invalid.
+- `startAmmo = getWeaponIdAmmoStartSize(weaponId)` - Returns starting ammo for weapon ID; returns `undefined` if the arg is wrong type or the weapon ID is invalid.
 
 
 # Graph
