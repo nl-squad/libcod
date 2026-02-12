@@ -737,30 +737,16 @@ void gsc_graph_get_node_ids_accessible_from(void)
 		return;
 	}
 
-	std::unordered_set<unsigned int> visited;
-	std::vector<AStarGraphNode*> queue;
-	queue.push_back(startNode);
-	visited.insert(startNode->id);
-
 	Scr_MakeArray();
-	for ( size_t qi = 0; qi < queue.size(); ++qi )
-	{
-		AStarGraphNode* currentNode = queue[qi];
 #if USE_FSA_MEMORY
-		unsigned int i = 0;
-		for ( auto edge = begin(currentNode->edges); i < currentNode->numEdges; ++edge, ++i )
+	unsigned int i = 0;
+	for ( auto edge = begin(startNode->edges); i < startNode->numEdges; ++edge, ++i )
 #else
-		for ( auto edge = begin(currentNode->edges); edge != end(currentNode->edges); ++edge )
+	for ( auto edge = begin(startNode->edges); edge != end(startNode->edges); ++edge )
 #endif
-		{
-			AStarGraphNode* nextNode = edge->end;
-			if ( visited.insert(nextNode->id).second )
-			{
-				queue.push_back(nextNode);
-				stackPushInt(static_cast<int>(nextNode->id));
-				stackPushArrayLast();
-			}
-		}
+	{
+		stackPushInt(static_cast<int>(edge->end->id));
+		stackPushArrayLast();
 	}
 }
 
@@ -786,9 +772,8 @@ void gsc_graph_get_node_ids_accessible_to(void)
 	}
 
 	const size_t nodeCount = graph.nodes.size();
-	std::vector<std::vector<unsigned int>> incoming(nodeCount);
-	incoming.reserve(nodeCount);
-
+	Scr_MakeArray();
+	std::unordered_set<unsigned int> seen;
 	for ( size_t fromIndex = 0; fromIndex < nodeCount; ++fromIndex )
 	{
 		AStarGraphNode* fromNode = graph.nodes[fromIndex].get();
@@ -799,33 +784,12 @@ void gsc_graph_get_node_ids_accessible_to(void)
 		for ( auto edge = begin(fromNode->edges); edge != end(fromNode->edges); ++edge )
 #endif
 		{
-			auto itTo = graph.nodeIndexById.find(edge->end->id);
-			if ( itTo == graph.nodeIndexById.end() )
+			if ( edge->end->id != nodeId )
 				continue;
 
-			incoming[itTo->second].push_back(fromNode->id);
-		}
-	}
-
-	std::unordered_set<unsigned int> visited;
-	std::vector<unsigned int> queue;
-	queue.push_back(nodeId);
-	visited.insert(nodeId);
-
-	Scr_MakeArray();
-	for ( size_t qi = 0; qi < queue.size(); ++qi )
-	{
-		unsigned int currentId = queue[qi];
-		auto itCurrent = graph.nodeIndexById.find(currentId);
-		if ( itCurrent == graph.nodeIndexById.end() )
-			continue;
-
-		for ( unsigned int fromId : incoming[itCurrent->second] )
-		{
-			if ( visited.insert(fromId).second )
+			if ( seen.insert(fromNode->id).second )
 			{
-				queue.push_back(fromId);
-				stackPushInt(static_cast<int>(fromId));
+				stackPushInt(static_cast<int>(fromNode->id));
 				stackPushArrayLast();
 			}
 		}
