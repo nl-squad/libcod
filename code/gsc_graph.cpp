@@ -1441,6 +1441,7 @@ void gsc_graph_precompute_paths_to_node(void)
 
 void gsc_graph_find_closest_node(void)
 {
+	int args = Scr_GetNumParam();
 	unsigned int graphId = Scr_GetInt(0);
 	AStarGraph* graphPointer = GetGraphById(graphId);
 	if ( !graphPointer )
@@ -1462,18 +1463,37 @@ void gsc_graph_find_closest_node(void)
 	float dist;
 	float closestDist = numeric_limits<float>::infinity();
 	unsigned int closestNodeId = 0;
+	bool foundNode = false;
+	bool useContentMask = false;
+	int contentMask = 0;
 
 	Scr_GetVector(1, origin);
+	if ( args > 2 )
+	{
+		useContentMask = true;
+		contentMask = Scr_GetInt(2);
+	}
 
 	for ( auto node = begin(graph.nodes); node != end(graph.nodes); ++node )
 	{
 		AStarGraphNode* currentNode = node->get();
+
+		if ( useContentMask && !G_LocationalTracePassed(currentNode->origin, origin, ENTITY_NONE, contentMask) )
+			continue;
+
 		dist = Get3DDistanceSquared(currentNode->origin, origin);
 		if ( dist < closestDist )
 		{
 			closestDist = dist;
 			closestNodeId = currentNode->id;
+			foundNode = true;
 		}
+	}
+
+	if ( !foundNode )
+	{
+		stackPushUndefined();
+		return;
 	}
 
 	Scr_AddInt(closestNodeId);

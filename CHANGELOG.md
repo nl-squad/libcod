@@ -33,5 +33,5 @@
 - `isSuccess = graphRemoveEdge(graphId, fromNodeId, toNodeId)` - Returns `true` if removed, `false` if edge not found; returns `undefined` if graph/start/end not found or (FSA) start has no edges.
 - `path = graphFindPath(graphId, startNodeId, endNodeId, [skipNodeIds], [skipNodeTypes], [skipEdgeTypes])` - Returns array of node IDs (includes `start`) if path found; returns `undefined` if graph is missing, nodes invalid, skip list invalid, or no path found.
 - `isSuccess = graphPrecomputePathsToNode(graphId, nodeId, [skipNodeTypes], [skipEdgeTypes])` - Returns `true` on success; returns `undefined` if graph missing, no nodes, goal missing, or precompute failed.
-- `nodeId = graphFindClosestNode(graphId, origin)` - Returns closest node ID; returns `undefined` if graph missing or has no nodes.
+- `nodeId = graphFindClosestNode(graphId, origin, [contentMask])` - Returns closest node ID; if `contentMask` is provided, only nodes with an unobstructed trace to `origin` using that mask are considered; returns `undefined` if graph missing, has no nodes, or no node passes the mask trace.
 - `edgeInfo = graphFindClosestEdge(graphId, origin)` - Returns array with `start`, `end`, `origin` (closest point), `cost`, `type`; returns `undefined` if graph missing, has <2 nodes, or has no edges.
