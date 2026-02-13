@@ -82,6 +82,8 @@ scr_function_t scriptFunctions[] =
 	{"graphPrecomputePathsToNode", gsc_graph_precompute_paths_to_node, 0},
 	{"graphFindClosestNode", gsc_graph_find_closest_node, 0},
 	{"graphFindClosestEdge", gsc_graph_find_closest_edge, 0},
+	{"graphGetAllEdges", gsc_graph_get_all_edges, 0},
+	{"graphAutodiscover", gsc_graph_autodiscover, 0},
 	#endif
 
 	#if COMPILE_BOTS == 1
