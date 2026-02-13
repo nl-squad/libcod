@@ -148,6 +148,8 @@
   * `logPrintConsole(<message>)`
   * `makeClientLocalizedString(<string>)`
   * `makeString(<localized string>)`
+  * `collapseColors(<string>)`
+  * `stripColors(<string>)`
   * `ord(<string character>)`
   * `resetTestClientNaming()`
   * `roundTo(<value>, <precision>)`

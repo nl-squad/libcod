@@ -890,6 +890,94 @@ void gsc_utils_toupper()
 	stackPushString(I_strupr(str));
 }
 
+static inline qboolean gsc_utils_isdigitchar(char c)
+{
+	return c >= '0' && c <= '9';
+}
+
+static void gsc_utils_transformcolorcodes(const char *str, char *clean, qboolean collapseDoubled, qboolean stripSimple)
+{
+	const char *read = str;
+	char *write = clean;
+	char *const writeEnd = clean + MAX_STRINGLENGTH - 1;
+
+	while ( *read != '\0' && write < writeEnd )
+	{
+		if ( *read == '^' )
+		{
+			if ( read[1] == '^' && read[2] != '\0' && read[3] != '\0' && gsc_utils_isdigitchar(read[2]) && gsc_utils_isdigitchar(read[3]) )
+			{
+				if ( collapseDoubled )
+				{
+					if ( write + 1 >= writeEnd )
+					{
+						break;
+					}
+					*write++ = '^';
+					*write++ = read[3];
+				}
+				read += 4;
+				continue;
+			}
+
+			if ( read[1] != '\0' && gsc_utils_isdigitchar(read[1]) )
+			{
+				if ( stripSimple )
+				{
+					read += 2;
+					continue;
+				}
+
+				if ( write + 1 >= writeEnd )
+				{
+					break;
+				}
+				*write++ = '^';
+				*write++ = read[1];
+				read += 2;
+				continue;
+			}
+		}
+
+		*write++ = *read++;
+	}
+
+	*write = '\0';
+}
+
+void gsc_utils_collapsecolors()
+{
+	char *str;
+
+	if ( !stackGetParams("s", &str) )
+	{
+		stackError("gsc_utils_collapsecolors() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	char clean[MAX_STRINGLENGTH];
+	gsc_utils_transformcolorcodes(str, clean, qtrue, qfalse);
+	stackPushString(clean);
+}
+
+void gsc_utils_stripcolors()
+{
+	char *str;
+
+	if ( !stackGetParams("s", &str) )
+	{
+		stackError("gsc_utils_stripcolors() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	char clean[MAX_STRINGLENGTH];
+	gsc_utils_transformcolorcodes(str, clean, qfalse, qtrue);
+	stackPushString(clean);
+}
+
+
 void gsc_utils_file_link()
 {
 	char *source, *dest;

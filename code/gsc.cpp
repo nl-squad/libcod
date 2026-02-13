@@ -198,6 +198,8 @@ scr_function_t scriptFunctions[] =
 	{"getAscii", gsc_utils_getascii, 0},
 	{"getCallStack", gsc_utils_getcallstack, 0},
 	{"toUpper", gsc_utils_toupper, 0},
+	{"collapseColors", gsc_utils_collapsecolors, 0},
+	{"stripColors", gsc_utils_stripcolors, 0},
 
 	#if ENABLE_UNSAFE == 1
 	{"file_link", gsc_utils_file_link, 0},
