@@ -35,3 +35,8 @@
 - `isSuccess = graphPrecomputePathsToNode(graphId, nodeId, [skipNodeTypes], [skipEdgeTypes])` - Returns `true` on success; returns `undefined` if graph missing, no nodes, goal missing, or precompute failed.
 - `nodeId = graphFindClosestNode(graphId, origin, [contentMask])` - Returns closest node ID; if `contentMask` is provided, only nodes with an unobstructed trace to `origin` using that mask are considered; returns `undefined` if graph missing, has no nodes, or no node passes the mask trace.
 - `edgeInfo = graphFindClosestEdge(graphId, origin)` - Returns array with `start`, `end`, `origin` (closest point), `cost`, `type`; returns `undefined` if graph missing, has <2 nodes, or has no edges.
+
+
+# Level
+
+- `players = getPlayersInRange(origin, maxDistSq, [filterTeam], [traceContentMask])` - Returns array of players within `maxDistSq` of `origin`; optional `filterTeam` is an int team ID (0=allies, 1=axis, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace.

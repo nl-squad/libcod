@@ -158,6 +158,7 @@ scr_function_t scriptFunctions[] =
 	#if COMPILE_LEVEL == 1
 	{"getEntityCount", gsc_level_getentitycount, 0},
 	{"getMovers", gsc_level_getmovers, 0},
+	{"getPlayersInRange", gsc_level_getplayersinrange, 0},
 	{"getNumberOfStaticModels", gsc_level_getnumberofstaticmodels, 0},
 	{"getSavePersist", gsc_level_getsavepersist, 0},
 	{"getStaticModelName", gsc_level_getstaticmodelname, 0},
