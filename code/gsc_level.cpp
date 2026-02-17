@@ -108,6 +108,105 @@ void gsc_level_getplayersinrange()
 	}
 }
 
+void gsc_level_getclosestplayerinrange()
+{
+	vec3_t origin;
+	float maxDistSq;
+	int filterTeam = -1;
+	int traceContentMask = 0;
+	int hasTraceCheck = 0;
+	int args = Scr_GetNumParam();
+
+	if ( args < 2 || Scr_GetType(0) != STACK_VECTOR || ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT ) )
+	{
+		stackError("gsc_level_getclosestplayerinrange() requires origin and max distance square");
+		stackPushUndefined();
+		return;
+	}
+
+	Scr_GetVector(0, origin);
+	maxDistSq = Scr_GetFloat(1);
+
+	if ( maxDistSq < 0.0f )
+	{
+		stackError("gsc_level_getclosestplayerinrange() max distance square must be >= 0");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( args > 2 && Scr_GetType(2) != STACK_UNDEFINED )
+	{
+		if ( Scr_GetType(2) != STACK_INT )
+		{
+			stackError("gsc_level_getclosestplayerinrange() team filter must be an int");
+			stackPushUndefined();
+			return;
+		}
+
+		filterTeam = Scr_GetInt(2);
+	}
+
+	if ( args > 3 && Scr_GetType(3) != STACK_UNDEFINED )
+	{
+		if ( Scr_GetType(3) != STACK_INT )
+		{
+			stackError("gsc_level_getclosestplayerinrange() content mask must be an int");
+			stackPushUndefined();
+			return;
+		}
+
+		traceContentMask = Scr_GetInt(3);
+		hasTraceCheck = 1;
+	}
+
+	gentity_t *closestPlayer = NULL;
+	float closestDistSq = maxDistSq;
+	bool foundPlayer = false;
+
+	for ( int i = 0; i < level.maxclients; ++i )
+	{
+		gentity_t *player = &g_entities[i];
+		gclient_t *client = player->client;
+		float dx, dy, dz;
+		float distSq;
+
+		if ( !client || client->sess.connected != CON_CONNECTED || client->sess.sessionState != STATE_PLAYING )
+			continue;
+
+		if ( player->health <= 0 )
+			continue;
+
+		if ( filterTeam >= 0 && client->sess.cs.team != filterTeam )
+			continue;
+
+		dx = player->r.currentOrigin[0] - origin[0];
+		dy = player->r.currentOrigin[1] - origin[1];
+		dz = player->r.currentOrigin[2] - origin[2];
+		distSq = dx * dx + dy * dy + dz * dz;
+
+		if ( distSq > maxDistSq )
+			continue;
+
+		if ( hasTraceCheck && !G_LocationalTracePassed(origin, player->r.currentOrigin, player->s.number, traceContentMask) )
+			continue;
+
+		if ( !foundPlayer || distSq < closestDistSq )
+		{
+			closestPlayer = player;
+			closestDistSq = distSq;
+			foundPlayer = true;
+		}
+	}
+
+	if ( !foundPlayer )
+	{
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushEntity(closestPlayer);
+}
+
 void gsc_level_getstaticmodelname()
 {
 	int index;
