@@ -26,23 +26,36 @@ void gsc_level_getnumberofstaticmodels()
 void gsc_level_getplayersinrange()
 {
 	vec3_t origin;
-	float maxDistSq;
+	float maxDistSq = 0.0f;
+	bool hasMaxDist = false;
 	int filterTeam = -1;
 	int traceContentMask = 0;
 	int hasTraceCheck = 0;
 	int args = Scr_GetNumParam();
 
-	if ( args < 2 || Scr_GetType(0) != STACK_VECTOR || ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT ) )
+	if ( args < 1 || Scr_GetType(0) != STACK_VECTOR )
 	{
-		stackError("gsc_level_getplayersinrange() requires origin and max distance square");
+		stackError("gsc_level_getplayersinrange() requires origin");
 		stackPushUndefined();
 		return;
 	}
 
 	Scr_GetVector(0, origin);
-	maxDistSq = Scr_GetFloat(1);
 
-	if ( maxDistSq < 0.0f )
+	if ( args > 1 && Scr_GetType(1) != STACK_UNDEFINED )
+	{
+		if ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT )
+		{
+			stackError("gsc_level_getplayersinrange() max distance square must be a number");
+			stackPushUndefined();
+			return;
+		}
+
+		maxDistSq = Scr_GetFloat(1);
+		hasMaxDist = true;
+	}
+
+	if ( hasMaxDist && maxDistSq < 0.0f )
 	{
 		stackError("gsc_level_getplayersinrange() max distance square must be >= 0");
 		stackPushUndefined();
@@ -97,7 +110,7 @@ void gsc_level_getplayersinrange()
 		dz = player->r.currentOrigin[2] - origin[2];
 		distSq = dx * dx + dy * dy + dz * dz;
 
-		if ( distSq > maxDistSq )
+		if ( hasMaxDist && distSq > maxDistSq )
 			continue;
 
 		if ( hasTraceCheck && !G_LocationalTracePassed(origin, player->r.currentOrigin, player->s.number, traceContentMask) )
@@ -111,23 +124,36 @@ void gsc_level_getplayersinrange()
 void gsc_level_getclosestplayerinrange()
 {
 	vec3_t origin;
-	float maxDistSq;
+	float maxDistSq = 0.0f;
+	bool hasMaxDist = false;
 	int filterTeam = -1;
 	int traceContentMask = 0;
 	int hasTraceCheck = 0;
 	int args = Scr_GetNumParam();
 
-	if ( args < 2 || Scr_GetType(0) != STACK_VECTOR || ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT ) )
+	if ( args < 1 || Scr_GetType(0) != STACK_VECTOR )
 	{
-		stackError("gsc_level_getclosestplayerinrange() requires origin and max distance square");
+		stackError("gsc_level_getclosestplayerinrange() requires origin");
 		stackPushUndefined();
 		return;
 	}
 
 	Scr_GetVector(0, origin);
-	maxDistSq = Scr_GetFloat(1);
 
-	if ( maxDistSq < 0.0f )
+	if ( args > 1 && Scr_GetType(1) != STACK_UNDEFINED )
+	{
+		if ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT )
+		{
+			stackError("gsc_level_getclosestplayerinrange() max distance square must be a number");
+			stackPushUndefined();
+			return;
+		}
+
+		maxDistSq = Scr_GetFloat(1);
+		hasMaxDist = true;
+	}
+
+	if ( hasMaxDist && maxDistSq < 0.0f )
 	{
 		stackError("gsc_level_getclosestplayerinrange() max distance square must be >= 0");
 		stackPushUndefined();
@@ -160,7 +186,7 @@ void gsc_level_getclosestplayerinrange()
 	}
 
 	gentity_t *closestPlayer = NULL;
-	float closestDistSq = maxDistSq;
+	float closestDistSq = hasMaxDist ? maxDistSq : 0.0f;
 	bool foundPlayer = false;
 
 	for ( int i = 0; i < level.maxclients; ++i )
@@ -184,7 +210,7 @@ void gsc_level_getclosestplayerinrange()
 		dz = player->r.currentOrigin[2] - origin[2];
 		distSq = dx * dx + dy * dy + dz * dz;
 
-		if ( distSq > maxDistSq )
+		if ( hasMaxDist && distSq > maxDistSq )
 			continue;
 
 		if ( hasTraceCheck && !G_LocationalTracePassed(origin, player->r.currentOrigin, player->s.number, traceContentMask) )

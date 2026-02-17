@@ -40,5 +40,5 @@
 
 # Level
 
-- `players = getPlayersInRange(origin, maxDistSq, [filterTeam], [traceContentMask])` - Returns array of players within `maxDistSq` of `origin`; optional `filterTeam` is an int team ID (0=allies, 1=axis, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace.
-- `player = getClosestPlayerInRange(origin, maxDistSq, [filterTeam], [traceContentMask])` - Returns closest player within `maxDistSq` of `origin`; optional `filterTeam` is an int team ID (0=allies, 1=axis, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace; returns `undefined` if none found.
+- `players = getPlayersInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns array of players within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=allies, 1=axis, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace.
+- `player = getClosestPlayerInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns closest player within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=allies, 1=axis, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace; returns `undefined` if none found.
