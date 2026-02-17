@@ -1659,6 +1659,10 @@ static int DetermineEdgeType(
 	int edgeTypeNormal,
 	int edgeTypeCrouch,
 	int edgeTypeProne,
+	int edgeTypeLadder,
+	int edgeTypeMantle,
+	int edgeTypeJump,
+	float maxJumpHeight,
 	int contentMask)
 {
 	vec3_t mins = {-8.0f, -8.0f, 0.0f};
@@ -1669,6 +1673,25 @@ static int DetermineEdgeType(
 
 	vec3_t start = {from.origin[0], from.origin[1], from.origin[2] + 2.0f};
 	vec3_t end = {to.origin[0], to.origin[1], to.origin[2] + 2.0f};
+	float zDelta = to.origin[2] - from.origin[2];
+
+	if ( edgeTypeLadder != INT_MIN || edgeTypeMantle != INT_MIN )
+	{
+		vec3_t wallStart = {from.origin[0], from.origin[1], from.origin[2] + 24.0f};
+		vec3_t wallEnd = {to.origin[0], to.origin[1], to.origin[2] + 24.0f};
+		vec3_t pointMins = {0.0f, 0.0f, 0.0f};
+		vec3_t pointMaxs = {0.0f, 0.0f, 0.0f};
+		SV_Trace(&trace, wallStart, pointMins, pointMaxs, wallEnd, ENTITY_NONE, contentMask, 0, NULL, 0);
+
+		if ( trace.fraction < 1.0f )
+		{
+			if ( edgeTypeLadder != INT_MIN && ( trace.surfaceFlags & SURF_LADDER ) )
+				return edgeTypeLadder;
+
+			if ( edgeTypeMantle != INT_MIN && ( trace.surfaceFlags & ( SURF_MANTLEON | SURF_MANTLEOVER ) ) )
+				return edgeTypeMantle;
+		}
+	}
 
 	if ( ( from.capabilityMask & 1 ) && ( to.capabilityMask & 1 ) )
 	{
@@ -1689,6 +1712,25 @@ static int DetermineEdgeType(
 		SV_Trace(&trace, start, mins, maxsProne, end, ENTITY_NONE, contentMask, 0, NULL, 0);
 		if ( trace.fraction >= 1.0f )
 			return edgeTypeProne;
+	}
+
+	if ( edgeTypeJump != INT_MIN && zDelta <= maxJumpHeight )
+	{
+		vec3_t mid = {
+			(from.origin[0] + to.origin[0]) * 0.5f,
+			(from.origin[1] + to.origin[1]) * 0.5f,
+			(from.origin[2] + to.origin[2]) * 0.5f
+		};
+		float dropDistance = std::max(64.0f, fabsf(zDelta) + 32.0f);
+		vec3_t downStart = {mid[0], mid[1], mid[2] + 8.0f};
+		vec3_t downEnd = {mid[0], mid[1], mid[2] - dropDistance};
+		vec3_t pointMins = {0.0f, 0.0f, 0.0f};
+		vec3_t pointMaxs = {0.0f, 0.0f, 0.0f};
+		SV_Trace(&trace, downStart, pointMins, pointMaxs, downEnd, ENTITY_NONE, contentMask, 0, NULL, 0);
+
+		bool hasGap = trace.fraction >= 1.0f;
+		if ( hasGap )
+			return edgeTypeJump;
 	}
 
 	return INT_MIN;
@@ -1735,7 +1777,7 @@ void gsc_graph_autodiscover(void)
 {
 	if ( Scr_GetNumParam() < 14 )
 	{
-		stackError("gsc_graph_autodiscover() requires 14 params: graphId, origin, mins, maxs, sampleSpacing, edgeLinkRadius, minWallClearance, maxStepHeight, normalHeight, crouchHeight, proneHeight, edgeTypeNormal, edgeTypeCrouch, edgeTypeProne");
+		stackError("gsc_graph_autodiscover() requires 14 params: graphId, origin, mins, maxs, sampleSpacing, edgeLinkRadius, minWallClearance, maxStepHeight, normalHeight, crouchHeight, proneHeight, edgeTypeNormal, edgeTypeCrouch, edgeTypeProne (optional: edgeTypeLadder, edgeTypeMantle, edgeTypeJump, maxJumpHeight)");
 		stackPushUndefined();
 		return;
 	}
@@ -1766,8 +1808,12 @@ void gsc_graph_autodiscover(void)
 	int edgeTypeNormal = Scr_GetInt(11);
 	int edgeTypeCrouch = Scr_GetInt(12);
 	int edgeTypeProne = Scr_GetInt(13);
+	int edgeTypeLadder = Scr_GetNumParam() > 14 ? Scr_GetInt(14) : INT_MIN;
+	int edgeTypeMantle = Scr_GetNumParam() > 15 ? Scr_GetInt(15) : INT_MIN;
+	int edgeTypeJump = Scr_GetNumParam() > 16 ? Scr_GetInt(16) : INT_MIN;
+	float maxJumpHeight = Scr_GetNumParam() > 17 ? Scr_GetFloat(17) : maxStepHeight;
 
-	if ( sampleSpacing <= 1.0f || edgeLinkRadius <= 1.0f || normalHeight <= 1.0f || crouchHeight <= 1.0f || proneHeight <= 1.0f )
+	if ( sampleSpacing <= 1.0f || edgeLinkRadius <= 1.0f || normalHeight <= 1.0f || crouchHeight <= 1.0f || proneHeight <= 1.0f || maxJumpHeight < maxStepHeight )
 	{
 		stackError("gsc_graph_autodiscover() invalid numeric parameters");
 		stackPushUndefined();
@@ -1868,7 +1914,7 @@ void gsc_graph_autodiscover(void)
 			if ( distSq > maxLinkDistSq )
 				continue;
 
-			if ( fabsf(generated[i].origin[2] - generated[j].origin[2]) > maxStepHeight )
+			if ( fabsf(generated[i].origin[2] - generated[j].origin[2]) > maxJumpHeight )
 				continue;
 
 			bool duplicate = false;
@@ -1903,6 +1949,10 @@ void gsc_graph_autodiscover(void)
 				edgeTypeNormal,
 				edgeTypeCrouch,
 				edgeTypeProne,
+				edgeTypeLadder,
+				edgeTypeMantle,
+				edgeTypeJump,
+				maxJumpHeight,
 				contentMask);
 			if ( edgeType == INT_MIN )
 				continue;
