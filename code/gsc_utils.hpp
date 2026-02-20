@@ -67,6 +67,7 @@ void gsc_utils_chr();
 void gsc_utils_ord();
 void gsc_utils_fromhex();
 void gsc_utils_tohex();
+void gsc_utils_sha256();
 
 void gsc_utils_getlasttestclientnumber();
 void gsc_utils_bullethiteffect();

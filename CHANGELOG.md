@@ -1,3 +1,8 @@
+# Utils
+
+- `hashHex = sha256(input, [iterations])` - Returns deterministic SHA-256 as a lowercase 64-character hex string. `iterations` is optional and defaults to `1`; when `iterations > 1`, each additional round hashes the previous 64-char hex output. Supports account hashing flows like `sha256(saltHex + password + pepper, iterations)`.
+
+
 # Weapons
 
 - `slotId = player getCurrentSlotId()` - Returns current slot ID (0=none, 1=primary, 2=primaryb); returns `undefined` if the entity is not a player.

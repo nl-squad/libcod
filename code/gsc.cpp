@@ -280,6 +280,7 @@ scr_function_t scriptFunctions[] =
 	{"ord", gsc_utils_ord, 0},
 	{"fromHex", gsc_utils_fromhex, 0},
 	{"toHex", gsc_utils_tohex, 0},
+	{"sha256", gsc_utils_sha256, 0},
 
 	{"getLastTestClientNumber", gsc_utils_getlasttestclientnumber, 0},
 	{"bulletHitEffect", gsc_utils_bullethiteffect, 0},
