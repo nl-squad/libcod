@@ -1283,7 +1283,7 @@ void gsc_graph_find_path_astar(void)
 	vector<unsigned int>skipNodes;
 	if ( Scr_GetNumParam() > 3 )
 	{
-		if ( Scr_GetType(3) == STACK_OBJECT && Scr_GetPointerType(3) == STACK_ARRAY )
+		if ( Scr_GetType(3) == VAR_OBJECT && Scr_GetPointerType(3) == VAR_ARRAY )
 		{
 			unsigned int arrIndex;
 			VariableValue *var;
@@ -1303,7 +1303,7 @@ void gsc_graph_find_path_astar(void)
 					index = FindNextSibling(index);
 					value = GetVariableValueAddress(index);
 	
-					if ( GetVarType(index) != STACK_INT )
+					if ( GetVarType(index) != VAR_INTEGER )
 					{
 						stackError("gsc_graph_find_path_astar() element %d of skip node array is type %s, not integer", i, getParamTypeAsString(index));
 						stackPushUndefined();

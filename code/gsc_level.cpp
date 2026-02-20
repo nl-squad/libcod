@@ -33,7 +33,7 @@ void gsc_level_getplayersinrange()
 	int hasTraceCheck = 0;
 	int args = Scr_GetNumParam();
 
-	if ( args < 1 || Scr_GetType(0) != STACK_VECTOR )
+	if ( args < 1 || Scr_GetType(0) != VAR_VECTOR )
 	{
 		stackError("gsc_level_getplayersinrange() requires origin");
 		stackPushUndefined();
@@ -42,9 +42,9 @@ void gsc_level_getplayersinrange()
 
 	Scr_GetVector(0, origin);
 
-	if ( args > 1 && Scr_GetType(1) != STACK_UNDEFINED )
+	if ( args > 1 && Scr_GetType(1) != VAR_UNDEFINED )
 	{
-		if ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT )
+		if ( Scr_GetType(1) != VAR_FLOAT && Scr_GetType(1) != VAR_INTEGER )
 		{
 			stackError("gsc_level_getplayersinrange() max distance square must be a number");
 			stackPushUndefined();
@@ -62,9 +62,9 @@ void gsc_level_getplayersinrange()
 		return;
 	}
 
-	if ( args > 2 && Scr_GetType(2) != STACK_UNDEFINED )
+	if ( args > 2 && Scr_GetType(2) != VAR_UNDEFINED )
 	{
-		if ( Scr_GetType(2) != STACK_INT )
+		if ( Scr_GetType(2) != VAR_INTEGER )
 		{
 			stackError("gsc_level_getplayersinrange() team filter must be an int");
 			stackPushUndefined();
@@ -74,9 +74,9 @@ void gsc_level_getplayersinrange()
 		filterTeam = Scr_GetInt(2);
 	}
 
-	if ( args > 3 && Scr_GetType(3) != STACK_UNDEFINED )
+	if ( args > 3 && Scr_GetType(3) != VAR_UNDEFINED )
 	{
-		if ( Scr_GetType(3) != STACK_INT )
+		if ( Scr_GetType(3) != VAR_INTEGER )
 		{
 			stackError("gsc_level_getplayersinrange() content mask must be an int");
 			stackPushUndefined();
@@ -131,7 +131,7 @@ void gsc_level_getclosestplayerinrange()
 	int hasTraceCheck = 0;
 	int args = Scr_GetNumParam();
 
-	if ( args < 1 || Scr_GetType(0) != STACK_VECTOR )
+	if ( args < 1 || Scr_GetType(0) != VAR_VECTOR )
 	{
 		stackError("gsc_level_getclosestplayerinrange() requires origin");
 		stackPushUndefined();
@@ -140,9 +140,9 @@ void gsc_level_getclosestplayerinrange()
 
 	Scr_GetVector(0, origin);
 
-	if ( args > 1 && Scr_GetType(1) != STACK_UNDEFINED )
+	if ( args > 1 && Scr_GetType(1) != VAR_UNDEFINED )
 	{
-		if ( Scr_GetType(1) != STACK_FLOAT && Scr_GetType(1) != STACK_INT )
+		if ( Scr_GetType(1) != VAR_FLOAT && Scr_GetType(1) != VAR_INTEGER )
 		{
 			stackError("gsc_level_getclosestplayerinrange() max distance square must be a number");
 			stackPushUndefined();
@@ -160,9 +160,9 @@ void gsc_level_getclosestplayerinrange()
 		return;
 	}
 
-	if ( args > 2 && Scr_GetType(2) != STACK_UNDEFINED )
+	if ( args > 2 && Scr_GetType(2) != VAR_UNDEFINED )
 	{
-		if ( Scr_GetType(2) != STACK_INT )
+		if ( Scr_GetType(2) != VAR_INTEGER )
 		{
 			stackError("gsc_level_getclosestplayerinrange() team filter must be an int");
 			stackPushUndefined();
@@ -172,9 +172,9 @@ void gsc_level_getclosestplayerinrange()
 		filterTeam = Scr_GetInt(2);
 	}
 
-	if ( args > 3 && Scr_GetType(3) != STACK_UNDEFINED )
+	if ( args > 3 && Scr_GetType(3) != VAR_UNDEFINED )
 	{
-		if ( Scr_GetType(3) != STACK_INT )
+		if ( Scr_GetType(3) != VAR_INTEGER )
 		{
 			stackError("gsc_level_getclosestplayerinrange() content mask must be an int");
 			stackPushUndefined();
