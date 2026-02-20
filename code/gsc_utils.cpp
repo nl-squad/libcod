@@ -105,7 +105,7 @@ int stackPrintParam(int param)
 
 	switch ( stackGetParamType(param) )
 	{
-	case STACK_STRING:
+	case VAR_STRING:
 		char *str;
 		stackGetParamString(param, &str); // No error checking, since we know it's a string
 		if ( con_coloredPrints->current.boolean )
@@ -114,19 +114,19 @@ int stackPrintParam(int param)
 			printf("%s", str);
 		return 1;
 
-	case STACK_VECTOR:
+	case VAR_VECTOR:
 		float vec[3];
 		stackGetParamVector(param, vec);
 		printf("(%.2f, %.2f, %.2f)", vec[0], vec[1], vec[2]);
 		return 1;
 
-	case STACK_FLOAT:
+	case VAR_FLOAT:
 		float tmp_float;
 		stackGetParamFloat(param, &tmp_float);
 		printf("%.3f", tmp_float); // Need a way to define precision
 		return 1;
 
-	case STACK_INT:
+	case VAR_INTEGER:
 		int tmp_int;
 		stackGetParamInt(param, &tmp_int);
 		printf("%d", tmp_int);
@@ -648,25 +648,25 @@ void gsc_utils_sprintf()
 
 				switch ( stackGetParamType(param) )
 				{
-				case STACK_STRING:
+				case VAR_STRING:
 					char *tmp_str;
 					stackGetParamString(param, &tmp_str); // No error checking, since we know it's a string
 					num += snprintf(&(result[num]), MAX_STRINGLENGTH - num, "%s", tmp_str);
 					break;
 
-				case STACK_VECTOR:
+				case VAR_VECTOR:
 					float tmp_vec[3];
 					stackGetParamVector(param, tmp_vec);
 					num += snprintf(&(result[num]), MAX_STRINGLENGTH - num, "(%.2f, %.2f, %.2f)", tmp_vec[0], tmp_vec[1], tmp_vec[2]);
 					break;
 
-				case STACK_FLOAT:
+				case VAR_FLOAT:
 					float tmp_float;
 					stackGetParamFloat(param, &tmp_float);
 					num += snprintf(&(result[num]), MAX_STRINGLENGTH - num, "%.3f", tmp_float); // Need a way to define precision
 					break;
 
-				case STACK_INT:
+				case VAR_INTEGER:
 					int tmp_int;
 					stackGetParamInt(param, &tmp_int);
 					num += snprintf(&(result[num]), MAX_STRINGLENGTH - num, "%d", tmp_int);
@@ -1376,7 +1376,7 @@ void gsc_utils_makelocalizedstring()
 	int param = 0;
 
 	var = &scrVmPub.top[-param];
-	var->type = STACK_LOCALIZED_STRING;
+	var->type = VAR_ISTRING;
 }
 
 void gsc_utils_makeclientlocalizedstring()
@@ -1420,7 +1420,7 @@ void gsc_utils_makestring()
 	int param = 0;
 
 	var = &scrVmPub.top[-param];
-	var->type = STACK_STRING;
+	var->type = VAR_STRING;
 }
 
 void gsc_utils_float()
@@ -1434,19 +1434,19 @@ void gsc_utils_float()
 
 	switch ( stackGetParamType(0) )
 	{
-	case STACK_STRING:
+	case VAR_STRING:
 		char *asstring;
 		stackGetParamString(0, &asstring);
 		stackPushFloat( atof(asstring) );
 		return;
 
-	case STACK_FLOAT:
+	case VAR_FLOAT:
 		float asfloat;
 		stackGetParamFloat(0, &asfloat);
 		stackPushFloat( asfloat );
 		return;
 
-	case STACK_INT:
+	case VAR_INTEGER:
 		int asinteger;
 		stackGetParamInt(0, &asinteger);
 		stackPushFloat( float(asinteger) );
@@ -1743,6 +1743,23 @@ extern dvar_t *sv_voiceQuality;
 encoder_async_task *first_encoder_async_task = NULL;
 extern int currentMaxSoundIndex;
 
+void Encode_FreeTask(encoder_async_task *task)
+{
+	Sys_EnterCriticalSection(CRITSECT_LOAD_SOUND_FILE);
+
+	if ( task->next != NULL )
+		task->next->prev = task->prev;
+
+	if ( task->prev != NULL )
+		task->prev->next = task->next;
+	else
+		first_encoder_async_task = task->next;
+	
+	Sys_LeaveCriticalSection(CRITSECT_LOAD_SOUND_FILE);
+
+	delete task;
+}
+
 void Encode_SetOptions(void *encoder)
 {
 	int g_encoder_samplerate = 8192;
@@ -1754,7 +1771,7 @@ void Encode_SetOptions(void *encoder)
 	speex_encoder_ctl(encoder, SPEEX_SET_DTX /* 34 */, &enabled); // Discontinuous Transmission (DTX)
 }
 
-void *encode_async(void *newtask)
+void * Encode_Async(void *newtask)
 {
 	encoder_async_task *task = (encoder_async_task*)newtask;
 	loadSoundFileThreadResult_t result = ENCODER_OK;
@@ -1881,15 +1898,9 @@ void *encode_async(void *newtask)
 		Sys_LeaveCriticalSection(CRITSECT_LOAD_SOUND_FILE);
 	}
 
-	if ( task->next != NULL )
-		task->next->prev = task->prev;
+	// Free task object
+	Encode_FreeTask(task);
 
-	if ( task->prev != NULL )
-		task->prev->next = task->next;
-	else
-		first_encoder_async_task = task->next;
-
-	delete task;
 	return NULL;
 }
 
@@ -2028,6 +2039,8 @@ void gsc_utils_loadsoundfile()
 		fclose(file);
 	}
 
+	Sys_EnterCriticalSection(CRITSECT_LOAD_SOUND_FILE);
+
 	encoder_async_task *current = first_encoder_async_task;
 
 	while ( current != NULL && current->next != NULL )
@@ -2047,19 +2060,25 @@ void gsc_utils_loadsoundfile()
 		current->next = newtask;
 	else
 		first_encoder_async_task = newtask;
+	
+	Sys_LeaveCriticalSection(CRITSECT_LOAD_SOUND_FILE);
 
 	pthread_t encoder_doer;
 
-	if ( pthread_create(&encoder_doer, NULL, encode_async, newtask) != 0 )
+	if ( pthread_create(&encoder_doer, NULL, Encode_Async, newtask) != 0 )
 	{
+		Encode_FreeTask(newtask);
 		stackError("gsc_utils_loadsoundfile() error creating encoder async handler thread");
 		stackPushUndefined();
 		return;
 	}
 
-	if ( pthread_detach(encoder_doer) != 0 )
+	int detach = pthread_detach(encoder_doer);
+
+	if ( detach != 0 )
 	{
-		stackError("gsc_utils_loadsoundfile() error detaching encoder async handler thread");
+		// Do not free the task here since the thread was created successfully
+		stackError("gsc_utils_loadsoundfile() error %d detaching encoder async handler thread", detach);
 		stackPushUndefined();
 		return;
 	}

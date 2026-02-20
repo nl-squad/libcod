@@ -26,7 +26,7 @@ void gsc_player_setstepsize(scr_entref_t ref)
 
 	if ( Scr_GetNumParam() > 0 )
 	{
-		if ( Scr_GetType(0) == STACK_UNDEFINED )
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
 		{
 			customPlayerState[id].overrideStepSize = qfalse;
 		}
@@ -59,7 +59,7 @@ void gsc_player_setpronestepsize(scr_entref_t ref)
 
 	if ( Scr_GetNumParam() > 0 )
 	{
-		if ( Scr_GetType(0) == STACK_UNDEFINED )
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
 		{
 			customPlayerState[id].overrideProneStepSize = qfalse;
 		}
@@ -312,11 +312,11 @@ void gsc_player_setbulletmodel(scr_entref_t ref)
 
 	if ( Scr_GetNumParam() > 0 )
 	{
-		if ( Scr_GetType(0) == STACK_UNDEFINED )
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
 		{
 			customPlayerState[id].droppingBulletVisuals = qfalse;
 		}
-		else if ( Scr_GetType(0) == STACK_STRING )
+		else if ( Scr_GetType(0) == VAR_STRING )
 		{
 			model = Scr_GetString(0);
 			customPlayerState[id].droppingBulletVisualModelIndex = G_ModelIndex(model);
@@ -331,7 +331,7 @@ void gsc_player_setbulletmodel(scr_entref_t ref)
 
 		if ( Scr_GetNumParam() > 1 )
 		{
-			if ( Scr_GetType(1) == STACK_INT )
+			if ( Scr_GetType(1) == VAR_INTEGER )
 			{
 				customPlayerState[id].droppingBulletVisualTime = Scr_GetInt(1);
 			}
@@ -370,12 +370,12 @@ void gsc_player_overridecontents(scr_entref_t ref)
 
 	if ( Scr_GetNumParam() > 0 )
 	{
-		if ( Scr_GetType(0) == STACK_UNDEFINED )
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
 		{
 			customPlayerState[id].overrideContents = qfalse;
 			customPlayerState[id].contents = 0;
 		}
-		else if ( Scr_GetType(0) == STACK_INT )
+		else if ( Scr_GetType(0) == VAR_INTEGER )
 		{
 			customPlayerState[id].overrideContents = qtrue;
 			customPlayerState[id].contents = Scr_GetInt(0);
@@ -775,7 +775,7 @@ void gsc_player_forceshot(scr_entref_t ref)
 
 	if ( Scr_GetNumParam() > 0 )
 	{
-		if ( Scr_GetType(0) == STACK_INT )
+		if ( Scr_GetType(0) == VAR_INTEGER )
 		{
 			onClientToo = Scr_GetInt(0);
 		}
@@ -2046,12 +2046,12 @@ void gsc_player_setping(scr_entref_t ref)
 
 	if ( Scr_GetNumParam() > 0 )
 	{
-		if ( Scr_GetType(0) == STACK_UNDEFINED )
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
 		{
 			customPlayerState[id].overridePing = qfalse;
 			customPlayerState[id].ping = 0;
 		}
-		else if ( Scr_GetType(0) == STACK_INT )
+		else if ( Scr_GetType(0) == VAR_INTEGER )
 		{
 			customPlayerState[id].overridePing = qtrue;
 			customPlayerState[id].ping = Scr_GetInt(0);
@@ -2065,12 +2065,12 @@ void gsc_player_setping(scr_entref_t ref)
 
 		if ( Scr_GetNumParam() > 1 )
 		{
-			if ( Scr_GetType(1) == STACK_UNDEFINED )
+			if ( Scr_GetType(1) == VAR_UNDEFINED )
 			{
 				customPlayerState[id].overrideStatusPing = qfalse;
 				customPlayerState[id].statusPing = 0;
 			}
-			else if ( Scr_GetType(1) == STACK_INT )
+			else if ( Scr_GetType(1) == VAR_INTEGER )
 			{
 				customPlayerState[id].overrideStatusPing = qtrue;
 				customPlayerState[id].statusPing = Scr_GetInt(1);
@@ -2485,12 +2485,12 @@ void gsc_player_setbulletmask(scr_entref_t ref)
 		else
 			old_setting = MASK_SHOT;
 
-		if ( Scr_GetType(0) == STACK_UNDEFINED )
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
 		{
 			customPlayerState[id].overrideBulletMask = qfalse;
 			customPlayerState[id].bulletMask = 0;
 		}
-		else if ( Scr_GetType(0) == STACK_INT )
+		else if ( Scr_GetType(0) == VAR_INTEGER )
 		{
 			customPlayerState[id].overrideBulletMask = qtrue;
 			customPlayerState[id].bulletMask = Scr_GetInt(0);
@@ -3150,7 +3150,7 @@ void gsc_player_playfxforplayer(scr_entref_t ref)
 	vec3_t forward_vec;
 	vec3_t up_vec;
 	vec3_t cross;
-	long double length;
+	float length;
 
 	args = Scr_GetNumParam();
 	error = qfalse;
@@ -4061,6 +4061,7 @@ void gsc_player_setholdingweapondown(scr_entref_t ref)
 	}
 
 	WeaponDef_t *weapDef = BG_GetWeaponDef(ps->weapon);
+	client_t *client = &svs.clients[id];
 
 	if ( Scr_GetInt(0) )
 	{
@@ -4072,7 +4073,7 @@ void gsc_player_setholdingweapondown(scr_entref_t ref)
 
 		// Set new states, some again updated in PM_Weapon
 		customPlayerState[id].holdingDownWeapon = ps->weapon;
-		ps->weaponTime = weapDef->iDropTime;
+		ps->weaponTime = weapDef->iDropTime + client->ping;
 		ps->weaponDelay = 0;
       	ps->weaponstate = WEAPON_DROPPING;
 
@@ -4105,7 +4106,7 @@ void gsc_player_setholdingweapondown(scr_entref_t ref)
 	{
 		if ( customPlayerState[id].holdingDownWeapon )
 		{
-			ps->weaponTime = weapDef->iRaiseTime;
+			ps->weaponTime = weapDef->iRaiseTime + client->ping;
 			ps->weaponstate = WEAPON_RAISING;
 			PM_AddEvent(ps, EV_RAISE_WEAPON);
 			PM_StartWeaponAnim(ps, WEAP_RAISE);

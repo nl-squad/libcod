@@ -136,17 +136,18 @@
 #define FL_INVISIBLE            0x800
 #define FL_LINKTO_ENABLED       0x1000
 #define FL_GRENADE_TOUCH_DAMAGE 0x4000
+#define FL_GRENADE_NO_BOUNCE    0x8000	// Guessed name
 #define FL_MISSILE_UNKNOWN      0x10000
 #define FL_STABLE_MISSILE       0x20000
 
 // entityShared_t->svFlags
-#define	SVF_NOCLIENT  0x00000001 // Don't send entity to clients, even if it has effects
-#define	SVF_BODY      0x00000002 // Player or corpse
-#define	SVF_DOBJ      0x00000004 // Dobj model, can be player model, script model, item.
-#define	SVF_BROADCAST 0x00000008 // Send to all connected clients
-#define	SVF_OBJECTIVE 0x00000010 // Added to snapshots, even if not nearby or behind fog
-#define SVF_RADIUS    0x00000020 // For trigger_radius and few other things
-#define SVF_DISK      0x00000040 // For trigger_disk and few other things
+#define	SVF_NOCLIENT  0x1	// Don't send entity to clients, even if it has effects
+#define	SVF_BODY      0x2	// Player or corpse
+#define	SVF_DOBJ      0x4	// Dobj model, can be player model, script model, item.
+#define	SVF_BROADCAST 0x8	// Send to all connected clients
+#define	SVF_OBJECTIVE 0x10	// Added to snapshots, even if not nearby or behind fog
+#define SVF_RADIUS    0x20	// For trigger_radius and few other things
+#define SVF_DISK      0x40	// For trigger_disk and few other things
 
 #define KEY_MASK_NONE       0
 #define KEY_MASK_FORWARD    127
@@ -326,7 +327,7 @@ typedef enum
 	CRITSECT_UNKNOWN3 = 3,
 	CRITSECT_DVAR = 4,
 	CRITSECT_RD_BUFFER = 5,
-	CRITSECT_PRINT = 6, // New
+	CRITSECT_PRINT, // New from here on
 #if COMPILE_CUSTOM_VOICE == 1
 	CRITSECT_LOAD_SOUND_FILE,
 #endif
@@ -655,6 +656,35 @@ struct scrStringGlob_t
 	HashEntry *nextFreeEntry;
 };
 
+typedef enum
+{
+	VAR_UNDEFINED,
+	VAR_OBJECT,
+	VAR_STRING,
+	VAR_ISTRING,
+	VAR_VECTOR,
+	VAR_FLOAT,
+	VAR_INTEGER,
+	VAR_CODEPOS,
+	VAR_PRECODEPOS,
+	VAR_FUNCTION,
+	VAR_STACK,
+	VAR_ANIMATION,
+	VAR_DEVELOPER_CODEPOS,
+	VAR_INCLUDE_CODEPOS,
+	VAR_THREAD_LIST,
+	VAR_THREAD,
+	VAR_NOTIFY_THREAD,
+	VAR_TIME_THREAD,
+	VAR_CHILD_THREAD,
+	VAR_STRUCT,
+	VAR_REMOVED_ENTITY,
+	VAR_ENTITY,
+	VAR_ARRAY,
+	VAR_REMOVED_THREAD,
+	VAR_COUNT
+} var_type_t;
+
 struct VariableStackBuffer
 {
 	const char *pos;
@@ -718,7 +748,7 @@ union VariableValueInternal_v
 typedef struct
 {
 	union VariableUnion u;
-	int type;
+	var_type_t type;
 } VariableValue;
 
 union Variable_u
@@ -741,35 +771,6 @@ typedef struct
 	union VariableValueInternal_v v;
 	uint16_t nextSibling;
 } VariableValueInternal;
-
-typedef enum
-{
-	VAR_UNDEFINED,
-	VAR_OBJECT,
-	VAR_STRING,
-	VAR_ISTRING,
-	VAR_VECTOR,
-	VAR_FLOAT,
-	VAR_INTEGER,
-	VAR_CODEPOS,
-	VAR_PRECODEPOS,
-	VAR_FUNCTION,
-	VAR_STACK,
-	VAR_ANIMATION,
-	VAR_DEVELOPER_CODEPOS,
-	VAR_INCLUDE_CODEPOS,
-	VAR_THREAD_LIST,
-	VAR_THREAD,
-	VAR_NOTIFY_THREAD,
-	VAR_TIME_THREAD,
-	VAR_CHILD_THREAD,
-	VAR_STRUCT,
-	VAR_REMOVED_ENTITY,
-	VAR_ENTITY,
-	VAR_ARRAY,
-	VAR_REMOVED_THREAD,
-	VAR_COUNT
-} var_type_t;
 
 typedef struct
 {
@@ -4067,6 +4068,7 @@ typedef struct
 {
 	union SavedVariableUnion u;
 	int type;
+	unsigned int levelId;
 } SavedVariableValue;
 
 typedef struct scr_notify_s
@@ -4135,7 +4137,7 @@ typedef struct customEntityState_s
 	customGravityType_t gravityType;
 	qboolean collideModels;
 	vec3_t velocity;
-	double maxVelocity;
+	float maxVelocity;
 	qboolean angledGravity;
 	float parallelBounce;
 	float perpendicularBounce;
@@ -4145,11 +4147,12 @@ typedef struct customEntityState_s
 } customEntityState_t;
 
 #define MAX_DROPPING_BULLETS 20 // Per player
+
 typedef struct
 {
 	const gentity_t *attacker;
 	vec3_t direction;
-	double distance;
+	float distance;
 	float dmgScale;
 	float drag;
 	gentity_t *inflictor;
@@ -4258,8 +4261,10 @@ typedef struct
 	unsigned short bot_trigger;
 	unsigned short bounce;
 	unsigned short bullet;
+	unsigned short contents;
 	unsigned short flags;
 	unsigned short land;
+	unsigned short material;
 	unsigned short title;
 	unsigned short trigger_radius;
 #if COMPILE_CUSTOM_VOICE == 1
@@ -4297,6 +4302,14 @@ struct leakyBucket_s
 };
 
 #define MAX_PROXIES 3 // One per protocol, in addition to actual server
+#define MAX_PROXY_CLIENT_THREADS 65536
+
+typedef struct
+{
+	int socket;
+	pthread_t thread;
+} proxyClientThreadInfo;
+
 typedef struct
 {
 	outboundLeakyBucketIndex_t bucket;
@@ -4306,28 +4319,24 @@ typedef struct
 	pthread_mutex_t lock;
 	pthread_t mainThread;
 	pthread_t *masterServerThread;
-	struct sockaddr_in *masterSockAdr;
+	sockaddr_in *masterSockAdr;
+	proxyClientThreadInfo clientThreadInfo[MAX_PROXY_CLIENT_THREADS];
 	int numClients;
 	int parentVersion;
 	const char *parentVersionString;
 	int socket;
 	qboolean started;
+	volatile qboolean stopped;
 	int version;
 	const char *versionString;
 } proxy_t;
 
 typedef struct
 {
-	int s_client;
-	pthread_t thread;
-} proxyClientThreadInfo;
-
-typedef struct
-{
 	int activeClient;
-	struct sockaddr_in addr;
+	sockaddr_in addr;
 	proxy_t *proxy;
-	int *s_client;
+	int socket;
 	int src_port;
 } proxyClientThreadArgs;
 

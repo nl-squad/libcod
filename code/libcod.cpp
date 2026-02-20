@@ -404,6 +404,9 @@ qboolean logHeartbeat = qtrue;
 // Storage for using the logfileName dvar
 char openLogfileName[MAX_OSPATH];
 
+// Storage for return value of script callback calls
+SavedVariableValue scriptHandleReturnValue;
+
 void custom_GScr_LoadConsts(void)
 {
 	/* Allocate custom strings for Scr_Notify() here, scheme:
@@ -416,8 +419,10 @@ void custom_GScr_LoadConsts(void)
 	custom_scr_const.bot_trigger = GScr_AllocString("bot_trigger");
 	custom_scr_const.bounce = GScr_AllocString("bounce");
 	custom_scr_const.bullet = GScr_AllocString("bullet");
+	custom_scr_const.contents = GScr_AllocString("contents");
 	custom_scr_const.flags = GScr_AllocString("flags");
 	custom_scr_const.land = GScr_AllocString("land");
+	custom_scr_const.material = GScr_AllocString("material");
 	custom_scr_const.title = GScr_AllocString("title");
 	custom_scr_const.trigger_radius = GScr_AllocString("trigger_radius");
 #if COMPILE_CUSTOM_VOICE == 1
@@ -1096,7 +1101,7 @@ void custom_SV_SpawnServer(char *server)
 	}
 	/* New code end */
 
-	custom_SV_SaveSystemInfo();
+	SV_SaveSystemInfo();
 
 	sv.state = SS_GAME;
 	SV_Heartbeat_f();
@@ -1111,6 +1116,14 @@ void custom_SV_SpawnServer(char *server)
 		DisablePbSv();
 	else
 		EnablePbSv();
+}
+
+void hook_Dvar_SetInt_in_SV_MapRestart(dvar_t *dvar, int value)
+{
+	Dvar_SetInt(dvar, value);
+
+	// Also update alternative system info strings during fast_restart
+	SV_SaveSystemInfo();
 }
 
 void hook_Com_MakeSoundAliasesPermanent(snd_alias_list_t *aliasList, SoundFileInfo *fileInfo)
@@ -1791,7 +1804,7 @@ void custom_G_SetClientContents(gentity_t *ent)
 qboolean custom_StuckInClient(gentity_t *self)
 {
 	float fTemp;
-	long double dTemp;
+	float fTemp2;
 	float selfEjectSpeed;
 	float hitEjectSpeed;
 	vec2_t dir;
@@ -1821,14 +1834,14 @@ qboolean custom_StuckInClient(gentity_t *self)
 
 				VectorSubtract2(hit->r.currentOrigin, self->r.currentOrigin, dir);
 				fTemp = self->r.maxs[0] + hit->r.maxs[0];
-				dTemp = Vec2LengthSq(dir);
-				if ( dTemp <= ( (long double)fTemp * (long double)fTemp ) )
+				fTemp2 = Vec2LengthSq(dir);
+				if ( fTemp2 <= fTemp * fTemp )
 				{
 					VectorSubtract2(hit->r.currentOrigin, self->r.currentOrigin, dir);
-					dTemp = G_crandom();
-					dir[0] = dir[0] + ( ( dTemp + dTemp ) - 1.0 );
-					dTemp = G_crandom();
-					dir[1] = dir[1] + ( ( dTemp + dTemp ) - 1.0 );
+					fTemp2 = G_crandom();
+					dir[0] = dir[0] + ( ( fTemp2 + fTemp2 ) - 1.0 );
+					fTemp2 = G_crandom();
+					dir[1] = dir[1] + ( ( fTemp2 + fTemp2 ) - 1.0 );
 					Vec2Normalize(dir);
 					if ( 0.0 < VectorLength2(hit->client->ps.velocity) )
 					{
@@ -2784,7 +2797,7 @@ void custom_MSG_WriteDeltaStruct(msg_t *msg, entityState_t *from, entityState_t 
 							
 							if ( maxDistance > 0 )
 							{
-								long double distance = Vec3DistanceSq(client->gentity->r.currentOrigin, origin);
+								float distance = Vec3DistanceSq(client->gentity->r.currentOrigin, origin);
 								if ( (int)distance > ( maxDistance * maxDistance ) )
 									*toF = EV_NONE;
 							}
@@ -4625,7 +4638,7 @@ void custom_SV_BotUserMove(client_t *client)
 }
 #endif
 
-void hook_RuntimeError_in_VM_Execute(const char *pos, int error_index, const char *error_message, const char *dialog_error_message)
+void hook_RuntimeError_in_VM_ExecuteInternal(const char *pos, int error_index, const char *error_message, const char *dialog_error_message)
 {
 	RuntimeError(pos, error_index, error_message, dialog_error_message);
 
@@ -4830,10 +4843,14 @@ int custom_BG_PlayAnim(playerState_t *ps, int animNum, animBodyPart_t bodyPart, 
 	int duration;
 
 	hook_BG_PlayAnim->unhook();
-	if ( !customPlayerState[ps->clientNum].animation )
-		duration = BG_PlayAnim(ps, animNum, bodyPart, forceDuration, setTimer, isContinue, force);
-	else
+
+	// Do not override the animation if the game is about to play a death
+	// animation, to avoid having to create player clones in a delayed manner
+	if ( customPlayerState[ps->clientNum].animation && ( animNum < 30 || animNum > 51 ) )
 		duration = BG_PlayAnim(ps, customPlayerState[ps->clientNum].animation, bodyPart, forceDuration, qtrue, isContinue, qtrue);
+	else
+		duration = BG_PlayAnim(ps, animNum, bodyPart, forceDuration, setTimer, isContinue, force);
+
 	hook_BG_PlayAnim->hook();
 
 	return duration;
@@ -6157,7 +6174,7 @@ void Scr_CodeCallback_NotifyDebug(unsigned int entId, char *message, unsigned in
 
 	if ( Scr_IsSystemActive() )
 	{
-		if ( !argc || !arguments || !arguments->type || arguments->type == STACK_PRECODEPOS )
+		if ( !argc || !arguments || !arguments->type || arguments->type == VAR_PRECODEPOS )
 		{
 			stackPushUndefined();
 		}
@@ -6169,14 +6186,14 @@ void Scr_CodeCallback_NotifyDebug(unsigned int entId, char *message, unsigned in
 				SavedVariableValue *arg = arguments + i;
 				switch ( arg->type )
 				{
-				case STACK_UNDEFINED: stackPushUndefined(); break;
-				case STACK_OBJECT: stackPushObject(arg->u.pointerValue); RemoveRefToObject(arg->u.pointerValue); break;
-				case STACK_STRING:
-				case STACK_LOCALIZED_STRING: stackPushString(arg->u.stringValue); break;
-				case STACK_VECTOR: stackPushVector(arg->u.vectorValue); break;
-				case STACK_FLOAT: stackPushFloat(arg->u.floatValue); break;
-				case STACK_INT: stackPushInt(arg->u.intValue); break;
-				case STACK_FUNCTION: stackPushFunc(arg->u.codePosValue); break;
+				case VAR_UNDEFINED: stackPushUndefined(); break;
+				case VAR_OBJECT: stackPushObject(arg->u.pointerValue); RemoveRefToObject(arg->u.pointerValue); break;
+				case VAR_STRING:
+				case VAR_ISTRING: stackPushString(arg->u.stringValue); break;
+				case VAR_VECTOR: stackPushVector(arg->u.vectorValue); break;
+				case VAR_FLOAT: stackPushFloat(arg->u.floatValue); break;
+				case VAR_INTEGER: stackPushInt(arg->u.intValue); break;
+				case VAR_FUNCTION: stackPushFunc(arg->u.codePosValue); break;
 				}
 				stackPushArrayLast();
 			}
@@ -6210,6 +6227,9 @@ void custom_G_RunFrame(int levelTime)
 	client_t *client = svs.clients;
 
 	/* New code start: Process some additional callbacks, if data is available */
+
+	// Wipe saved script callback return value
+	VM_ClearSavedReturnValue();
 
 	// Warn about server lag
 	if ( codecallback_hitchwarning && hitchFrameTime && Scr_IsSystemActive() )
@@ -6988,6 +7008,23 @@ void custom_G_ClientStopUsingTurret(gentity_t *self)
 	self->active = 0;
 	self->r.ownerNum = ENTITY_NONE;
 	info->flags &= ~0x800u;
+
+	/* New code start: setHoldingWeaponDown script method enforcement after
+	 leaving turret */
+	int id = owner - g_entities;
+
+	if ( customPlayerState[id].holdingDownWeapon )
+	{
+		playerState_t *ps = SV_GameClientNum(id);
+		WeaponDef_t *weapDef = BG_GetWeaponDef(ps->weapon);
+		client_t *client = &svs.clients[id];
+
+		ps->weaponTime = weapDef->iDropTime + client->ping;
+		PM_AddEvent(ps, EV_PUTAWAY_WEAPON);
+		PM_StartWeaponAnim(ps, WEAP_DROP);
+		BG_AnimScriptEvent(ps, ANIM_ET_DROPWEAPON, 0, 1);
+	}
+	/* New code end */
 }
 
 void custom_G_ParseEntityFields(gentity_t *ent)
@@ -7412,6 +7449,12 @@ void custom_Player_UpdateCursorHints(gentity_t *player)
 					{
 						/* New code start: Optional hintString toggle when item pickup is disabled */
 						if ( customPlayerState[player->s.number].noPickupHintString )
+							continue;
+						/* New code end */
+
+						/* New code start: setHoldingWeaponDown script method preventing
+						 item pickup */
+						if ( customPlayerState[player->s.number].holdingDownWeapon )
 							continue;
 						/* New code end */
 						
@@ -7916,7 +7959,7 @@ void custom_PM_BeginWeaponChange(playerState_t *ps, unsigned int newweapon)
 
 void custom_PM_Weapon(pmove_t *pm, pml_t *pml)
 {
-	/* New code start: setHoldingWeaponDown script method */
+	/* New code start: setHoldingWeaponDown script method enforcement */
 	int id = pm->ps->clientNum;
 
 	if ( customPlayerState[id].holdingDownWeapon )
@@ -7948,7 +7991,7 @@ void custom_Scr_PlayFX(void)
 	vec3_t cross;
 	vec3_t up;
 	vec3_t origin;
-	long double length;
+	float length;
 	int args;
 	uint index;
 	gentity_t *ent;
@@ -8069,10 +8112,10 @@ void custom_Scr_BulletTrace(void)
 	/* New code end */
 
 	type = Scr_GetType(3);
-	if ( type == STACK_OBJECT )
+	if ( type == VAR_OBJECT )
 	{
 		type = Scr_GetPointerType(3);
-		if ( type == STACK_ENTITY )
+		if ( type == VAR_ENTITY )
 		{
 			passEnt = Scr_GetEntity(3);
 			passEntityNum = passEnt->s.number;
@@ -8100,8 +8143,21 @@ void custom_Scr_BulletTrace(void)
 		Scr_AddArrayStringIndexed(scr_const.normal);
 		Scr_AddString(Com_SurfaceTypeToName((int)( trace.surfaceFlags & 0x1F00000U ) >> 0x14));
 		Scr_AddArrayStringIndexed(scr_const.surfacetype);
+		/* New code start: Return additional trace result data */
 		Scr_AddInt(trace.surfaceFlags);
 		Scr_AddArrayStringIndexed(custom_scr_const.flags);
+		Scr_AddInt(trace.contents);
+		Scr_AddArrayStringIndexed(custom_scr_const.contents);
+		if ( !trace.material )
+		{
+			Scr_AddUndefined();
+		}
+		else
+		{
+			Scr_AddString(trace.material);
+		}
+		Scr_AddArrayStringIndexed(custom_scr_const.material);
+		/* New code end */
 	}
 	else
 	{
@@ -8111,8 +8167,14 @@ void custom_Scr_BulletTrace(void)
 		Scr_AddArrayStringIndexed(scr_const.normal);
 		Scr_AddConstString(scr_const.none);
 		Scr_AddArrayStringIndexed(scr_const.surfacetype);
+		/* New code start: Return additional trace result data */
 		Scr_AddInt(0);
 		Scr_AddArrayStringIndexed(custom_scr_const.flags);
+		Scr_AddInt(0);
+		Scr_AddArrayStringIndexed(custom_scr_const.contents);
+		Scr_AddUndefined();
+		Scr_AddArrayStringIndexed(custom_scr_const.material);
+		/* New code end */
 	}
 }
 
@@ -8147,10 +8209,10 @@ void custom_Scr_BulletTracePassed(void)
 	/* New code end */
 
 	type = Scr_GetType(3);
-	if ( type == STACK_OBJECT )
+	if ( type == VAR_OBJECT )
 	{
 		type = Scr_GetPointerType(3);
-		if ( type == STACK_ENTITY )
+		if ( type == VAR_ENTITY )
 		{
 			passEnt = Scr_GetEntity(3);
 			passEntityNum = passEnt->s.number;
@@ -8194,10 +8256,10 @@ void custom_Scr_SightTracePassed(void)
 	/* New code end */
 
 	type = Scr_GetType(3);
-	if ( type == STACK_OBJECT )
+	if ( type == VAR_OBJECT )
 	{
 		type = Scr_GetPointerType(3);
-		if ( type == STACK_ENTITY )
+		if ( type == VAR_ENTITY )
 		{
 			passEnt = Scr_GetEntity(3);
 			passEntityNum = passEnt->s.number;
@@ -8332,9 +8394,9 @@ void custom_GScr_Obituary(void)
 	ent->s.dmgFlags = distance; // Reusing the dmgFlags field that is otherwise not used at obituary TempEntities
 	
 	ent->s.otherEntityNum = victim->s.number;
-	if ( Scr_GetType(1) == STACK_OBJECT )
+	if ( Scr_GetType(1) == VAR_OBJECT )
 	{
-		if ( Scr_GetPointerType(1) == STACK_ENTITY )
+		if ( Scr_GetPointerType(1) == VAR_ENTITY )
 		{
 			attacker = Scr_GetEntity(1);
 			ent->s.attackerEntityNum = attacker->s.number;
@@ -8399,7 +8461,7 @@ void custom_GScr_SetHintString(scr_entref_t entref)
 		Scr_Error("The setHintString command only works on trigger_radius, trigger_use or trigger_use_touch entities.\n");
 	}
 
-	if ( Scr_GetType(0) == STACK_STRING )
+	if ( Scr_GetType(0) == VAR_STRING )
 	{
 		if ( I_stricmp(Scr_GetString(0), "") == 0 )
 		{
@@ -8477,26 +8539,26 @@ void Scr_QueueNotifyDebugForCallback(unsigned int entId, unsigned int constStrin
 		AddRefToObject(entId);
 		scr_notify[scr_notify_index].entId = entId;
 		I_strncpyz(scr_notify[scr_notify_index].message, message, strlen(message) + 1);
-		for ( arg = arguments; arg->type != STACK_PRECODEPOS && argc < MAX_NOTIFY_DEBUG_PARAMS; arg-- )
+		for ( arg = arguments; arg->type != VAR_PRECODEPOS && argc < MAX_NOTIFY_DEBUG_PARAMS; arg-- )
 		{
 			savedArg = &scr_notify[scr_notify_index].arguments[argc];
 			savedArg->type = arg->type;
 			switch ( savedArg->type )
 			{
-			case STACK_UNDEFINED: break;
-			case STACK_OBJECT: AddRefToObject(arg->u.pointerValue); savedArg->u.pointerValue = arg->u.pointerValue; break;
-			case STACK_STRING:
-			case STACK_LOCALIZED_STRING:
+			case VAR_UNDEFINED: break;
+			case VAR_OBJECT: AddRefToObject(arg->u.pointerValue); savedArg->u.pointerValue = arg->u.pointerValue; break;
+			case VAR_STRING:
+			case VAR_ISTRING:
 				stringValueSrc = SL_ConvertToString(arg->u.stringValue);
 				I_strncpyz(savedArg->u.stringValue, stringValueSrc, strlen(stringValueSrc) + 1);
 				break;
-			case STACK_VECTOR: VectorCopy(arg->u.vectorValue, savedArg->u.vectorValue); break;
-			case STACK_FLOAT: savedArg->u.floatValue = arg->u.floatValue; break;
-			case STACK_INT: savedArg->u.intValue = arg->u.intValue; break;
-			case STACK_FUNCTION: savedArg->u.codePosValue = arg->u.codePosValue; break;
+			case VAR_VECTOR: VectorCopy(arg->u.vectorValue, savedArg->u.vectorValue); break;
+			case VAR_FLOAT: savedArg->u.floatValue = arg->u.floatValue; break;
+			case VAR_INTEGER: savedArg->u.intValue = arg->u.intValue; break;
+			case VAR_FUNCTION: savedArg->u.codePosValue = arg->u.codePosValue; break;
 			default:
 				printf("WARNING: Notify debug with param %d of type 0x%x is currently not supported for CodeCallback_NotifyDebug\n", argc + 1, savedArg->type);
-				savedArg->type = STACK_UNDEFINED;
+				savedArg->type = VAR_UNDEFINED;
 			}
 			argc++;
 		}
@@ -8541,20 +8603,20 @@ void custom_Scr_Notify(gentity_t *ent, unsigned short constString, unsigned int 
 			savedArg->type = arg->type;
 			switch ( savedArg->type )
 			{
-			case STACK_UNDEFINED: break;
-			case STACK_OBJECT: AddRefToObject(arg->u.pointerValue); savedArg->u.pointerValue = arg->u.pointerValue; break;
-			case STACK_STRING:
-			case STACK_LOCALIZED_STRING:
+			case VAR_UNDEFINED: break;
+			case VAR_OBJECT: AddRefToObject(arg->u.pointerValue); savedArg->u.pointerValue = arg->u.pointerValue; break;
+			case VAR_STRING:
+			case VAR_ISTRING:
 				stringValueSrc = SL_ConvertToString(arg->u.stringValue);
 				I_strncpyz(savedArg->u.stringValue, stringValueSrc, strlen(stringValueSrc) + 1);
 				break;
-			case STACK_VECTOR: VectorCopy(arg->u.vectorValue, savedArg->u.vectorValue); break;
-			case STACK_FLOAT: savedArg->u.floatValue = arg->u.floatValue; break;
-			case STACK_INT: savedArg->u.intValue = arg->u.intValue; break;
-			case STACK_FUNCTION: savedArg->u.codePosValue = arg->u.codePosValue; break;
+			case VAR_VECTOR: VectorCopy(arg->u.vectorValue, savedArg->u.vectorValue); break;
+			case VAR_FLOAT: savedArg->u.floatValue = arg->u.floatValue; break;
+			case VAR_INTEGER: savedArg->u.intValue = arg->u.intValue; break;
+			case VAR_FUNCTION: savedArg->u.codePosValue = arg->u.codePosValue; break;
 			default:
 				printf("WARNING: Notify with param %d of type 0x%x is currently not supported for CodeCallback_Notify\n", i + 1, savedArg->type);
-				savedArg->type = STACK_UNDEFINED;
+				savedArg->type = VAR_UNDEFINED;
 			}
 		}
 	}
@@ -8574,14 +8636,14 @@ void custom_Scr_Notify(gentity_t *ent, unsigned short constString, unsigned int 
 			SavedVariableValue *arg = &savedArgs[i];
 			switch ( arg->type )
 			{
-			case STACK_UNDEFINED: stackPushUndefined(); break;
-			case STACK_OBJECT: stackPushObject(arg->u.pointerValue); RemoveRefToObject(arg->u.pointerValue); break;
-			case STACK_STRING:
-			case STACK_LOCALIZED_STRING: stackPushString(arg->u.stringValue); break;
-			case STACK_VECTOR: stackPushVector(arg->u.vectorValue); break;
-			case STACK_FLOAT: stackPushFloat(arg->u.floatValue); break;
-			case STACK_INT: stackPushInt(arg->u.intValue); break;
-			case STACK_FUNCTION: stackPushFunc(arg->u.codePosValue); break;
+			case VAR_UNDEFINED: stackPushUndefined(); break;
+			case VAR_OBJECT: stackPushObject(arg->u.pointerValue); RemoveRefToObject(arg->u.pointerValue); break;
+			case VAR_STRING:
+			case VAR_ISTRING: stackPushString(arg->u.stringValue); break;
+			case VAR_VECTOR: stackPushVector(arg->u.vectorValue); break;
+			case VAR_FLOAT: stackPushFloat(arg->u.floatValue); break;
+			case VAR_INTEGER: stackPushInt(arg->u.intValue); break;
+			case VAR_FUNCTION: stackPushFunc(arg->u.codePosValue); break;
 			}
 			stackPushArrayLast();
 		}
@@ -8988,7 +9050,7 @@ qboolean custom_Bullet_Fire_Drop(droppingBullet_t *bullet, const gentity_t *infl
 			if ( self->s.eType == ET_PLAYER_CORPSE && g_corpseHit->current.boolean ) // New: g_corpseHit dvar
 				surfaceType = 7;
 			else
-				surfaceType = ( trace.surfaceFlags & 0x1F00000 ) >> 20;
+				surfaceType = (trace.surfaceFlags & 0x1F00000) >> 20;
 
 			tempEnt->s.surfType = surfaceType;
 			tempEnt->s.otherEntityNum = weaponEnt->s.number;
@@ -9602,7 +9664,7 @@ void custom_G_FreeEntity(gentity_t *ent)
 qboolean G_BounceGravityModel(gentity_t *ent, trace_t *trace) // G_BounceMissile as base
 {
 	int contents;
-	double length;
+	float length;
 	qboolean bounce;
 	vec3_t angle;
 	vec3_t planeNormal;
@@ -9673,7 +9735,6 @@ qboolean G_BounceGravityModel(gentity_t *ent, trace_t *trace) // G_BounceMissile
 
 void G_RunGravityModelWithBounce(gentity_t *ent) // G_RunMissile as base
 {
-	double absDeltaZ;
 	vec3_t lerpOrigin;
 	trace_t trace2;
 	trace_t trace;
@@ -9704,10 +9765,7 @@ void G_RunGravityModelWithBounce(gentity_t *ent) // G_RunMissile as base
 		VectorAdd(ent->r.currentOrigin, maxLerpVector, origin);
 	}
 
-	absDeltaZ = ent->s.pos.trDelta[2];
-	if ( absDeltaZ < 0 )
-		absDeltaZ *= -1;
-	if ( ( absDeltaZ <= 30.0 ) || SV_PointContents(ent->r.currentOrigin, -1, CONTENTS_WATER) )
+	if ( I_fabs(ent->s.pos.trDelta[2]) <= 30 || SV_PointContents(ent->r.currentOrigin, -1, CONTENTS_WATER) )
 	{
 		G_MissileTrace(&trace, ent->r.currentOrigin, origin, ent->s.number, ent->clipmask);
 	}
@@ -9799,10 +9857,7 @@ void G_RunGravityModelNoBounce(gentity_t *ent) // G_RunItem as base
 			origin[2] = origin[2] - 1.0;
 		}
 
-		if ( customEntityState[ent->s.number].collideModels )
-			SV_Trace(&trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->s.number, ent->clipmask, 1, NULL, 1);
-		else
-			SV_Trace(&trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->s.number, ent->clipmask, 0, NULL, 1);
+		SV_Trace(&trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->s.number, ent->clipmask, customEntityState[ent->s.number].collideModels, NULL, 1);
 
 		if ( trace.fraction < 1.0 )
 		{
@@ -9811,10 +9866,7 @@ void G_RunGravityModelNoBounce(gentity_t *ent) // G_RunItem as base
 			{
 				VectorSubtract(origin, ent->r.currentOrigin, subOrigin);
 				VectorMA(origin, 1 - DotProduct(subOrigin, trace.normal), trace.normal, origin);
-				if ( customEntityState[ent->s.number].collideModels )
-					SV_Trace(&trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->s.number, ent->clipmask, 1, NULL, 1);
-				else
-					SV_Trace(&trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->s.number, ent->clipmask, 0, NULL, 1);
+				SV_Trace(&trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->s.number, ent->clipmask, customEntityState[ent->s.number].collideModels, NULL, 1);
 				Vec3Lerp(lerpOrigin, origin, trace.fraction, lerpOrigin);
 			}
 			ent->s.pos.trType = TR_LINEAR_STOP;
@@ -10079,58 +10131,58 @@ int custom_CM_AreaEntities(const float *mins, const float *maxs, int *entityList
 	return ae.count;
 }
 
-void PrintCallbackInfo(gentity_t *ent, int callbackHook, unsigned int numArgs)
+void PrintCallbackInfo(gentity_t *ent, int handle, unsigned int paramcount)
 {
 	unsigned int i;
 
 	for ( i = 0; i < sizeof(callbacks)/sizeof(callbacks[0]); i++ )
 	{
-		if ( *callbacks[i].pos == callbackHook )
+		if ( *callbacks[i].pos == handle )
 		{
 			if ( !ent )
-				Com_Printf("Calling %s with %d argument(s)\n", callbacks[i].name, numArgs);
+				Com_Printf("Calling %s with %d argument(s)\n", callbacks[i].name, paramcount);
 			else
-				Com_Printf("Calling %s with %d argument(s) on entity %d\n", callbacks[i].name, numArgs, ent - g_entities);
+				Com_Printf("Calling %s with %d argument(s) on entity %d\n", callbacks[i].name, paramcount, ent - g_entities);
 			return;
 		}
 	}
-	if ( callbackHook == g_scr_data.gametype.main )
+	if ( handle == g_scr_data.gametype.main )
 		Com_Printf("Calling gametype::main\n");
-	else if ( callbackHook == g_scr_data.levelscript )
+	else if ( handle == g_scr_data.levelscript )
 		Com_Printf("Calling map::main\n");
-	else if ( callbackHook == g_scr_data.delete_ )
+	else if ( handle == g_scr_data.delete_ )
 		Com_Printf("Calling codescripts/delete::main\n");
-	else if ( callbackHook == g_scr_data.initstructs )
+	else if ( handle == g_scr_data.initstructs )
 		Com_Printf("Calling codescripts/struct::initstructs\n");
-	else if ( callbackHook == g_scr_data.createstruct )
+	else if ( handle == g_scr_data.createstruct )
 		Com_Printf("Calling codescripts/struct::createstruct\n");
 	else
-		Com_Printf("Calling unknown callback @ 0x%x with %d argument(s)\n", callbackHook, numArgs);
+		Com_Printf("Calling unknown callback @ 0x%x with %d argument(s)\n", handle, paramcount);
 }
 
-short custom_Scr_ExecEntThread(gentity_t *ent, int callbackHook, unsigned int numArgs)
+unsigned short custom_Scr_ExecEntThread(gentity_t *ent, int handle, unsigned int paramcount)
 {
 	if ( g_debugCallbacks->current.boolean )
-		PrintCallbackInfo(ent, callbackHook, numArgs);
+		PrintCallbackInfo(ent, handle, paramcount);
 
 	hook_Scr_ExecEntThread->unhook();
-	short (*Scr_ExecEntThread)(gentity_t *ent, int callbackHook, unsigned int numArgs);
+	unsigned short (*Scr_ExecEntThread)(gentity_t *ent, int handle, unsigned int paramcount);
 	*(int *)&Scr_ExecEntThread = hook_Scr_ExecEntThread->from;
-	short ret = Scr_ExecEntThread(ent, callbackHook, numArgs);
+	unsigned short ret = Scr_ExecEntThread(ent, handle, paramcount);
 	hook_Scr_ExecEntThread->hook();
 
 	return ret;
 }
 
-short custom_Scr_ExecThread(int callbackHook, unsigned int numArgs)
+unsigned short custom_Scr_ExecThread(int handle, unsigned int paramcount)
 {
 	if ( g_debugCallbacks->current.boolean )
-		PrintCallbackInfo(NULL, callbackHook, numArgs);
+		PrintCallbackInfo(NULL, handle, paramcount);
 
 	hook_Scr_ExecThread->unhook();
-	short (*Scr_ExecThread)(int callbackHook, unsigned int numArgs);
+	unsigned short (*Scr_ExecThread)(int handle, unsigned int paramcount);
 	*(int *)&Scr_ExecThread = hook_Scr_ExecThread->from;
-	short ret = Scr_ExecThread(callbackHook, numArgs);
+	unsigned short ret = Scr_ExecThread(handle, paramcount);
 	hook_Scr_ExecThread->hook();
 
 	return ret;
@@ -11505,6 +11557,46 @@ void custom_SV_FinalMessage(const char *message)
 	hook_SV_FinalMessage->hook();
 }
 
+void VM_ClearSavedReturnValue(void)
+{
+	SavedVariableValue *val = &scriptHandleReturnValue;
+	if ( val->type == VAR_OBJECT && scrVarPub.levelId == val->levelId )
+		RemoveRefToObject(val->u.pointerValue);
+
+	memset(val, 0, sizeof(SavedVariableValue));
+}
+
+void VM_SaveReturnValue(VariableValue *arg)
+{
+	SavedVariableValue *ret = &scriptHandleReturnValue;
+	char *stringValueSrc;
+
+	switch ( arg->type )
+	{
+	case VAR_UNDEFINED: break;
+	case VAR_OBJECT: AddRefToObject(arg->u.pointerValue); ret->u.pointerValue = arg->u.pointerValue; break;
+	case VAR_STRING:
+	case VAR_ISTRING:
+		stringValueSrc = SL_ConvertToString(arg->u.stringValue);
+		I_strncpyz(ret->u.stringValue, stringValueSrc, strlen(stringValueSrc) + 1);
+		break;
+	case VAR_VECTOR: VectorCopy(arg->u.vectorValue, ret->u.vectorValue); break;
+	case VAR_FLOAT: ret->u.floatValue = arg->u.floatValue; break;
+	case VAR_INTEGER: ret->u.intValue = arg->u.intValue; break;
+	case VAR_FUNCTION: ret->u.codePosValue = arg->u.codePosValue; break;
+	default: ret->type = VAR_UNDEFINED;
+	}
+	ret->levelId = scrVarPub.levelId;
+}
+
+unsigned int VM_ExecuteSaveReturnValue(unsigned int localId, const char *pos, unsigned int paramcount)
+{
+	unsigned int id = VM_Execute(localId, pos, paramcount);
+	VM_SaveReturnValue(scrVmPub.top);
+
+	return id;
+}
+
 class cCallOfDuty2Pro
 {
 public:
@@ -11537,7 +11629,7 @@ public:
 		cracking_hook_call(0x0806B2CE, (int)hook_Com_sprintf_in_NET_AdrToString_IPX);
 		cracking_hook_call(0x0808BDC8, (int)hook_FS_ReadFile_in_SV_Map_f);
 		cracking_hook_call(0x080F7803, (int)hook_Player_UpdateLookAtEntity);
-		cracking_hook_call(0x08082346, (int)hook_RuntimeError_in_VM_Execute);
+		cracking_hook_call(0x08082346, (int)hook_RuntimeError_in_VM_ExecuteInternal);
 		cracking_hook_call(0x0811599A, (int)hook_SetExpFog_density_typo);
 		cracking_hook_call(0x0812C28D, (int)hook_sprintf_in_FX_ParseEffect);
 		cracking_hook_call(0x080F4509, (int)hook_sprintf_in_G_ParseWeaponAccurayGraphInternal);
@@ -11552,6 +11644,11 @@ public:
 		cracking_hook_call(0x0808DB12, (int)hook_SV_Cmd_Argv_in_SV_AuthorizeIpPacket);
 		cracking_hook_call(0x08070BE7, (int)Scr_GetCustomFunction);
 		cracking_hook_call(0x08070E0B, (int)Scr_GetCustomMethod);
+		cracking_hook_call(0x0808402E, (int)VM_ExecuteSaveReturnValue); // Scr_ExecThread
+		cracking_hook_call(0x080840C0, (int)VM_ExecuteSaveReturnValue); // Scr_ExecEntThreadNum
+		cracking_hook_call(0x08084141, (int)VM_ExecuteSaveReturnValue); // Scr_AddExecThread
+		cracking_hook_call(0x080841BA, (int)VM_ExecuteSaveReturnValue); // Scr_AddExecEntThreadNum
+		cracking_hook_call(0x0808BF55, (int)hook_Dvar_SetInt_in_SV_MapRestart);		
 
 		hook_Com_DPrintf = new cHook(0x08060E3A, (int)custom_Com_DPrintf);
 		#if COMPILE_UTILS == 1
@@ -11758,6 +11855,7 @@ public:
 		cracking_hook_function(0x080639E4, (int)custom_Dvar_SetS_f);
 		cracking_hook_function(0x0806398C, (int)custom_Dvar_SetU_f);
 		cracking_hook_function(0x08094A10, (int)custom_SV_SendServerCommand);
+		cracking_hook_function(0x08093486, (int)custom_SV_SaveSystemInfo);
 
 		#if COMPILE_JUMP == 1
 		cracking_hook_function(0x080DC8CA, (int)Jump_ReduceFriction);

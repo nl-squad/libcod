@@ -7,11 +7,13 @@ Script callback functions:
   * `CodeCallback_RemoteCommand(<from>, <args>)` no longer provides the message pointer (3rd argument)
 
 Script code functions:
+  * `BulletTrace(<start>, <end>, <hit characters>, <ignore entity>, [<content mask>])` now also returns surface contents and material
   * `EarthQuake(<scale>, <duration>, <source>, <radius>)` now returns the (temporary) earthquake entity
   * `Obituary(<victim>, <attacker>, <weapon>, <meansOfDeath>, [<team>], [<origin>], [<max. distance>])` now returns the (temporary) obituary entity
   * `processRemoteCommand()` no longer requires any parameters to be passed in
 
 Script code methods:
+  * Renamed `getLastGamestate()` to `getLastGamestateSize()`
   * `<entity> setBounds(<length>, <width>, <height>)` now requires three parameters, instead of two
 
 # 🏗 Changed with or since release v13.0:

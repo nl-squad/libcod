@@ -4,7 +4,7 @@
 #include "gsc.hpp"
 
 qboolean IsNullVector(float *vec);
-void VectorClampLength(float *vec, double max);
+void VectorClampLength(float *vec, float max);
 bool FloatsApproximatelyEqual(float a, float b);
 float Get3DDistance(float *a, float *b);
 float Get3DDistanceSquared(float *a, float *b);

@@ -42,7 +42,7 @@ const char * stackGetParamTypeAsString(int param)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type == STACK_OBJECT ) // VAR_OBJECT
+	if ( var->type == VAR_OBJECT )
 		return getParamTypeAsString(Scr_GetPointerType(param));
 	else
 		return getParamTypeAsString(var->type);
@@ -51,8 +51,43 @@ const char * stackGetParamTypeAsString(int param)
 void Scr_AddFunc(const char *value)
 {
 	IncInParam();
-	scrVmPub.top->type = STACK_FUNCTION;
+	scrVmPub.top->type = VAR_FUNCTION;
 	scrVmPub.top->u.codePosValue = value;
+}
+
+void Scr_ClearInParams(void)
+{
+	for ( ; scrVmPub.inparamcount != 0; scrVmPub.inparamcount-- )
+	{
+		RemoveRefToValue(scrVmPub.top);
+		scrVmPub.top--;
+	}
+}
+
+void IncOutParam(void)
+{
+	Scr_ClearInParams();
+	if ( scrVmPub.top == scrVmPub.maxstack )
+	{
+		Com_Error(ERR_DROP, "\x15Internal script stack overflow");
+	}
+	scrVmPub.top++;
+	scrVmPub.outparamcount++;
+}
+
+void Scr_PushConstString(unsigned int value)
+{
+	IncOutParam();
+	scrVmPub.top->type = VAR_STRING;
+	scrVmPub.top->u.stringValue = value;
+	SL_AddRefToString(value);
+}
+
+void Scr_PushString(const char *value)
+{
+	IncOutParam();
+	scrVmPub.top->type = VAR_STRING;
+	scrVmPub.top->u.stringValue = SL_GetString(value, 0);
 }
 
 void NULL_FUNC_ENTITY(scr_entref_t id) {}
@@ -423,8 +458,8 @@ scr_method_t scriptMethods[] =
 	{"getInactivityTime", gsc_player_getinactivitytime, 0},
 	{"getIP", gsc_player_getip, 0},
 	{"getLastConnectTime", gsc_player_getlastconnecttime, 0},
-	{"getLastGamestate", gsc_player_getlastgamestatesize, 0},
-	{"getLastMSG", gsc_player_getlastmsg, 0},
+	{"getLastGamestateSize", gsc_player_getlastgamestatesize, 0},
+	{"getLastMsg", gsc_player_getlastmsg, 0},
 	{"getNumberOfEntsInSnapshot", gsc_player_getnumberofentsinsnapshot, 0},
 	{"getPing", gsc_player_getping, 0},
 	{"getPlayerstateFlags", gsc_player_getplayerstateflags, 0},
@@ -582,7 +617,7 @@ xmethod_t Scr_GetCustomMethod(const char **fname, qboolean *fdev)
 int stackGetParamType(int param)
 {
 	if ( param >= Scr_GetNumParam() )
-		return STACK_UNDEFINED;
+		return VAR_UNDEFINED;
 
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
@@ -753,13 +788,13 @@ int stackGetParamInt(int param, int *value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type == STACK_FLOAT )
+	if ( var->type == VAR_FLOAT )
 	{
 		*value = var->u.floatValue;
 		return 1;
 	}
 
-	if ( var->type != STACK_INT )
+	if ( var->type != VAR_INTEGER )
 		return 0;
 
 	*value = var->u.intValue;
@@ -775,7 +810,7 @@ int stackGetParamFunction(int param, int *value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type != STACK_FUNCTION )
+	if ( var->type != VAR_FUNCTION )
 		return 0;
 
 	*value = var->u.codePosValue - scrVarPub.programBuffer;
@@ -791,7 +826,7 @@ int stackGetParamString(int param, char **value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type != STACK_STRING )
+	if ( var->type != VAR_STRING )
 		return 0;
 
 	*value = SL_ConvertToString(var->u.stringValue);
@@ -807,7 +842,7 @@ int stackGetParamConstString(int param, unsigned int *value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type != STACK_STRING )
+	if ( var->type != VAR_STRING )
 		return 0;
 
 	*value = var->u.stringValue;
@@ -823,7 +858,7 @@ int stackGetParamLocalizedString(int param, char **value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type != STACK_LOCALIZED_STRING )
+	if ( var->type != VAR_ISTRING )
 		return 0;
 
 	*value = SL_ConvertToString(var->u.stringValue);
@@ -839,7 +874,7 @@ int stackGetParamVector(int param, vec3_t value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type != STACK_VECTOR )
+	if ( var->type != VAR_VECTOR )
 		return 0;
 
 	VectorCopy(var->u.vectorValue, value);
@@ -855,13 +890,13 @@ int stackGetParamFloat(int param, float *value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type == STACK_INT )
+	if ( var->type == VAR_INTEGER )
 	{
 		*value = var->u.intValue;
 		return 1;
 	}
 
-	if ( var->type != STACK_FLOAT )
+	if ( var->type != VAR_FLOAT )
 		return 0;
 
 	*value = var->u.floatValue;
@@ -877,7 +912,7 @@ int stackGetParamObject(int param, unsigned int *value)
 	VariableValue *var;
 	var = &scrVmPub.top[-param];
 
-	if ( var->type != STACK_OBJECT )
+	if ( var->type != VAR_OBJECT )
 		return 0;
 
 	*value = var->u.pointerValue;
