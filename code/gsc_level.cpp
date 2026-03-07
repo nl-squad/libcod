@@ -93,6 +93,7 @@ void gsc_level_getplayersinrange()
 	{
 		gentity_t *player = &g_entities[i];
 		gclient_t *client = player->client;
+		vec3_t playerViewOrigin;
 		float dx, dy, dz;
 		float distSq;
 
@@ -105,15 +106,17 @@ void gsc_level_getplayersinrange()
 		if ( filterTeam >= 0 && client->sess.cs.team != filterTeam )
 			continue;
 
-		dx = player->r.currentOrigin[0] - origin[0];
-		dy = player->r.currentOrigin[1] - origin[1];
-		dz = player->r.currentOrigin[2] - origin[2];
+		G_GetPlayerViewOrigin(player, playerViewOrigin);
+
+		dx = playerViewOrigin[0] - origin[0];
+		dy = playerViewOrigin[1] - origin[1];
+		dz = playerViewOrigin[2] - origin[2];
 		distSq = dx * dx + dy * dy + dz * dz;
 
 		if ( hasMaxDist && distSq > maxDistSq )
 			continue;
 
-		if ( hasTraceCheck && !G_LocationalTracePassed(origin, player->r.currentOrigin, player->s.number, traceContentMask) )
+		if ( hasTraceCheck && !G_LocationalTracePassed(origin, playerViewOrigin, player->s.number, traceContentMask) )
 			continue;
 
 		stackPushEntity(player);
