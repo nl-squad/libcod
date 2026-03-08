@@ -7,7 +7,9 @@
 void gsc_level_getentitycount();
 void gsc_level_getmovers();
 void gsc_level_getnumberofstaticmodels();
+void gsc_level_getplayersbyvieworigininrange();
 void gsc_level_getplayersinrange();
+void gsc_level_getclosestplayerbyvieworigininrange();
 void gsc_level_getclosestplayerinrange();
 void gsc_level_getsavepersist();
 void gsc_level_getstaticmodelname();

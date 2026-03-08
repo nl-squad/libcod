@@ -192,9 +192,11 @@ scr_function_t scriptFunctions[] =
 
 	#if COMPILE_LEVEL == 1
 	{"getEntityCount", gsc_level_getentitycount, 0},
+	{"getPlayersByViewOriginInRange", gsc_level_getplayersbyvieworigininrange, 0},
 	{"getMovers", gsc_level_getmovers, 0},
 	{"getPlayersInRange", gsc_level_getplayersinrange, 0},
 	{"getClosestPlayerInRange", gsc_level_getclosestplayerinrange, 0},
+	{"getClosestPlayerByViewOriginInRange", gsc_level_getclosestplayerbyvieworigininrange, 0},
 	{"getNumberOfStaticModels", gsc_level_getnumberofstaticmodels, 0},
 	{"getSavePersist", gsc_level_getsavepersist, 0},
 	{"getStaticModelName", gsc_level_getstaticmodelname, 0},

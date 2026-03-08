@@ -2,7 +2,6 @@
 
 - `hashHex = sha256(input, [iterations])` - Returns deterministic SHA-256 as a lowercase 64-character hex string. `iterations` is optional and defaults to `1`; when `iterations > 1`, each additional round hashes the previous 64-char hex output. Supports account hashing flows like `sha256(saltHex + password + pepper, iterations)`.
 
-
 # Weapons
 
 - `slotId = player getCurrentSlotId()` - Returns current slot ID (0=none, 1=primary, 2=primaryb); returns `undefined` if the entity is not a player.
@@ -21,7 +20,6 @@
 - `clipSize = getWeaponIdClipAmmoSize(weaponId)` - Returns clip size for weapon ID; returns `0` if the weapon has no clip; returns `undefined` if the arg is wrong type or the weapon ID is invalid.
 - `ammoSize = getWeaponIdAmmoSize(weaponId)` - Returns max ammo for weapon ID (clip-only weapons return clip size); returns `0` if the weapon has no ammo type; returns `undefined` if the arg is wrong type or the weapon ID is invalid.
 - `startAmmo = getWeaponIdAmmoStartSize(weaponId)` - Returns starting ammo for weapon ID; returns `undefined` if the arg is wrong type or the weapon ID is invalid.
-
 
 # Graph
 
@@ -42,8 +40,9 @@
 - `nodeId = graphFindClosestNode(graphId, origin, [contentMask])` - Returns closest node ID; if `contentMask` is provided, only nodes with an unobstructed trace to `origin` using that mask are considered; returns `undefined` if graph missing, has no nodes, or no node passes the mask trace.
 - `edgeInfo = graphFindClosestEdge(graphId, origin)` - Returns array with `start`, `end`, `origin` (closest point), `cost`, `type`; returns `undefined` if graph missing, has <2 nodes, or has no edges.
 
-
 # Level
 
-- `players = getPlayersInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns array of players within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=free, 1=axis, 2=allies, 3=spectator, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace.
-- `player = getClosestPlayerInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns closest player within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=free, 1=axis, 2=allies, 3=spectator, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace; returns `undefined` if none found.
+- `players = getPlayersInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns array of players whose player origins are within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=free, 1=axis, 2=allies, 3=spectator, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace to player origin.
+- `players = getPlayersByViewOriginInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns array of players whose view origins are within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=free, 1=axis, 2=allies, 3=spectator, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace to view origin.
+- `player = getClosestPlayerInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns closest player by player origin within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=free, 1=axis, 2=allies, 3=spectator, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace to player origin; returns `undefined` if none found.
+- `player = getClosestPlayerByViewOriginInRange(origin, [maxDistSq], [filterTeam], [traceContentMask])` - Returns closest player by view origin within `maxDistSq` of `origin` when provided; if `maxDistSq` is omitted/undefined, no distance limit is applied. Optional `filterTeam` is an int team ID (0=free, 1=axis, 2=allies, 3=spectator, no filter when omitted/undefined), optional `traceContentMask` is an int content mask for line-of-sight trace to view origin; returns `undefined` if none found.
